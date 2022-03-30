@@ -3,22 +3,11 @@ from dash import dcc
 from dash import html
 import dash_leaflet as dl
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
-import pandas as pd
 from geopy.geocoders import Nominatim
 
 import osmnx as ox
-import networkx as nx
-import numpy as np
-import random
-import array
-import matplotlib.pyplot as plt
-import json
-import numpy as np
 
-from IPython import get_ipython
-import subprocess
 
 from navbar import Navbar
 from server import app
@@ -47,30 +36,6 @@ capacity = 20
 #epsilon (randomness coeff )
 epsilon = 0
 
-# get_ipython().system('g++ code.cpp -o code')
-
-
-
-# graph figure
-fig = go.Figure(go.Scattermapbox(
-        lat=[location.latitude],
-        lon=[location.longitude]
-    ))
-
-fig.update_layout(
-    hovermode='closest',
-    mapbox=dict(
-        accesstoken=mapbox_access_token,
-        bearing=0,
-        center=go.layout.mapbox.Center(
-            lat=location.latitude,
-            lon=location.longitude
-        ),
-        pitch=0,
-        zoom=5,
-    )
-)
-
 
 # filter details
 available_indicators = [
@@ -79,18 +44,18 @@ available_indicators = [
 ]
 
 
-location_input = dbc.FormGroup(
+hp_location_input_form = dbc.FormGroup(
     [
         dbc.Label("Search Area", html_for="location", width=2),
         dbc.Col(
             dbc.Input(
-                type="text", id="locationE", placeholder="Enter a valid location",debounce=False
+                type="text", id="hp_location_input", placeholder="Enter a valid location",debounce=False
             ),
             width=10,
         ),
     ],
     row=True,
-    id="location_input_form1"
+    id="hp_location_input_form"
 )
 
 
@@ -100,7 +65,7 @@ autocomplete_list_ecorouting = dbc.Row(
          dbc.Col(
             dbc.ListGroup(
             [],
-            id="autocomplete_list_ecorouting",
+            id="hp_autocomplete_list",
             style={"margin-bottom":"8px"}
             ),
              width=10
@@ -108,41 +73,27 @@ autocomplete_list_ecorouting = dbc.Row(
     ]
 )
 
-radius_input = dbc.FormGroup(
+hp_radius_input_form = dbc.FormGroup(
     [
         dbc.Label("Radius (in meters)", html_for="radius", width=2),
         dbc.Col(
             dbc.Input(
-                type="number", id="radiusE", placeholder="Enter Radius between [500,8000] meters",min=100, step=1,max=8000
+                type="number", id="hp_radius_input", placeholder="Enter Radius between [500,8000] meters",min=100, step=1,max=8000
             ),
             width=10,
         ),
     ],
     row=True,
-    id="radius_input_form1"
-)
-
-charging_stations_input = dbc.FormGroup(
-    [
-        dbc.Label("Charging Stations", html_for="no_of_stations", width=2),
-        dbc.Col(
-            dbc.Input(
-                type="number", id="no_of_stationsE", placeholder="Enter no of charging stations(atleast 1)",min=1, step=1
-            ),
-            width=10,
-        ),
-    ],
-    row=True,
-    id="charging_stations_input_form1"
+    id="hp_radius_input_form"
 )
 
 
-all_nodes_button = dbc.Spinner(children=[dbc.Button("Find All Nodes",id="all_nodes_buttonE",color="primary")],size="sm", color="primary",id="spinner_1")
+hp_all_nodes_button = dbc.Spinner(children=[dbc.Button("Find All Nodes",id="hp_all_nodes_button",color="primary")],
+                                        size="sm", color="primary",id="spinner_1")
 
 # Overall Form
-all_nodes_form = dbc.Form([location_input,autocomplete_list_ecorouting,radius_input,charging_stations_input,all_nodes_button])
-
-# all_nodes_form = dbc.Form([location_input,radius_input,dbc.Button("Find All Nodes",id="all_nodes_button",color="primary")])
+all_nodes_form = dbc.Form([hp_location_input_form,autocomplete_list_ecorouting,hp_radius_input_form,
+                            hp_all_nodes_button])
 
 
 CONTAINER_STYLE = {
@@ -159,10 +110,17 @@ collapse_body = dbc.Container(
     [
         all_nodes_form,
         html.Div(id='num_all_nodes_div'),
-        dcc.Graph(
-            id='mapE',
-            figure=fig
-        )
+        dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
+            center=Search_Region,
+            zoom=5,
+            children=[
+                dl.LayersControl(
+               [dl.TileLayer()] +
+                [
+                dl.Overlay(dl.LayerGroup(id="dl_hp_all_nodes"), name="All Nodes", checked=True),
+                dl.Overlay(dl.LayerGroup(id="dl_hp_circle"), name="Search Area", checked=True),]
+              ) 
+            ], id="hp_result_map"),
     ]
     ,style=CONTAINER_STYLE
 )
@@ -171,14 +129,14 @@ collapse = html.Div(
     [
         dbc.Button(
             "Enter Your Location",
-            id="homepage_collapse_toggle",
+            id="hp_collapse_toggle",
             className="mb-3",
             color="primary",
             n_clicks=0,
         )
         ,dbc.Collapse(
             collapse_body,
-            id="homepage_collapse",
+            id="hp_collapse",
             is_open=True,
         )
     ]
@@ -222,17 +180,6 @@ CONTAINER_STYLE = {
 
 body = dbc.Container([
     collapse,
-    # dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
-    #         center=Search_Region,
-    #         zoom=5,
-    #         children=[
-    #             dl.LayersControl(
-    #            [dl.TileLayer()] +
-    #             [dl.Overlay(dl.LayerGroup(id=MARKER_GROUP_ID), name="marker", checked=True),
-    #             dl.Overlay(dl.LayerGroup(id="stationsInInput"), name="markers", checked=True),
-    #             dl.Overlay(dl.LayerGroup(id="CircleAreaE"), name="polygon", checked=True)]
-    #           ) 
-    #         ], id=MAP_ID),
     html.H1("Available Domains"),
     cards
     ],

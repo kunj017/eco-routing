@@ -13,6 +13,7 @@ from documentation import Documentation
 from server import app
 
 
+
 @app.callback(Output('page-content', 'children'),
             [Input('url', 'pathname')])
 def display_page(pathname):
@@ -30,3 +31,4 @@ def display_page(pathname):
 
 if __name__ == "__main__":
     app.run_server(debug = True)
+    app.config.suppress_callback_exceptions=True

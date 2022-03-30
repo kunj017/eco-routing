@@ -1,0 +1,9 @@
+num_of_tot_nodes = 0
+num_of_ev = 0
+ev_options = None
+ev_dropdown = None
+positions = 0
+polygon = []
+center = 0
+zoomLevel = 0
+location = None
