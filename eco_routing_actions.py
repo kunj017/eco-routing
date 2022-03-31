@@ -38,6 +38,7 @@ Oid = []
 input_ev_locations = []
 Xnode = []
 Ynode = []
+algo_input = []
 @app.callback(
     [Output("er_autocomplete_list","children"),
      Output("er_location_input","value")],
@@ -144,6 +145,10 @@ def default_location():
      Output("dl_er_circle", "children"),
      Output(component_id='er_result_map', component_property='center'),
      Output(component_id='er_result_map', component_property='zoom'),
+     Output(component_id='dl_er_input_all_nodes', component_property='children'),
+     Output("dl_er_input_circle", "children"),
+     Output(component_id='er_input_map', component_property='center'),
+     Output(component_id='er_input_map', component_property='zoom'),
     ],
     inputs = [Input('er_all_nodes_button', 'n_clicks')],
     state = [
@@ -156,11 +161,12 @@ def hp_update_map(n_clicks, location, radius):
     if n_clicks is None:
         if config.num_of_tot_nodes != 0:
             return 'Total Number of Nodes: {}'.format(config.num_of_tot_nodes),config.positions,\
+                    config.polygon,config.center, config.zoomLevel,config.positions,\
                     config.polygon,config.center, config.zoomLevel
 
         if n_clicks is None:
             fig, center, zoomLevel = default_location()    
-            return '' ,dash.no_update,dash.no_update,center, zoomLevel
+            return '' ,dash.no_update,dash.no_update,center, zoomLevel,dash.no_update,dash.no_update,center, zoomLevel
 
     global Xnode, Ynode
     fig, num_of_tot_nodes, G1, A, Xnode, Ynode, center, zoomLevel, latitude, longitude = find_all_nodes(location, radius)
@@ -185,7 +191,7 @@ def hp_update_map(n_clicks, location, radius):
     # setting the global variables in config file
     config.num_of_tot_nodes, config.positions, config.polygon, config.center, config.zoomLevel = num_of_tot_nodes, positions, polygon,center, zoomLevel
     
-    return 'Total Number of Nodes: {}'.format(num_of_tot_nodes),positions, polygon,center, zoomLevel
+    return 'Total Number of Nodes: {}'.format(num_of_tot_nodes),positions, polygon,center, zoomLevel, positions, polygon,center, zoomLevel
 
 
 
@@ -268,6 +274,18 @@ def get_all_nodes(latitude,longitude,radius):
    
     B1=A.tocoo()
     print(B1)
+    list1=B1.data
+    list2=B1.row
+    list3=B1.col
+
+    my_file = open('input_graph.txt', "w+")
+    my_file.write("%d \n" %len(G1.nodes))
+    my_file.write("%d \n" %len(list1))
+
+    for i in range(len(list1)):
+        my_file.write("%d " %(list2[i]))  
+        my_file.write("%d " %(list3[i]))  
+        my_file.write("%d \n" %int(list1[i])) 
 
     return len(G1.nodes), G1, A, Xnode, Ynode
 
@@ -277,14 +295,12 @@ def get_all_nodes(latitude,longitude,radius):
 @app.callback(
     [
      Output(component_id='er_num_all_ev', component_property='children'),
-     Output(component_id='dl_er_input_all_nodes', component_property='children'),
-     Output("dl_er_input_circle", "children"),
-     Output(component_id='er_input_map', component_property='center'),
-     Output(component_id='er_input_map', component_property='zoom'),
      Output(component_id='er_ev_input_dropdown', component_property='options'),
-     Output(component_id='ec_ev_sdinput_table', component_property='children')
+     Output(component_id='ev_sdinput_table', component_property='options'),
     ],
-    inputs = [Input('er_vehicles_button', 'n_clicks')],
+    inputs = [
+                Input('er_vehicles_button', 'n_clicks'),
+            ],
     state = [
            State(component_id='er_no_of_vehicles_input', component_property='value'),
            ]
@@ -292,21 +308,86 @@ def get_all_nodes(latitude,longitude,radius):
 def er_input_ev(nclicks,number_of_ev):
     if nclicks is None:
         if config.ev_dropdown is not None:
-            return f"Number of ev : {config.num_of_ev}",config.positions, config.polygon,\
-                    config.center, config.zoomLevel, config.ev_dropdown, "Enter Source and Destinations"
-        fig, center, zoomLevel = default_location()
-        return "",[],[],center, zoomLevel, [], "Enter Source and Destinations"
+            return f"Number of ev : {config.num_of_ev}",\
+                    config.ev_dropdown.to_dict('records'),\
+                           config.table_of_ev_inputs.to_dict('records')
+        return "Enter number of EVs",[], []
     
     global input_ev_locations, Xnode
     input_ev_locations = []
-    dropdown = [{'label':f"Node{i}", 'value':f"Node{i}"} for i in range(len(Xnode))]
+    # dropdown = [{'label':f"Node{i}", 'value':f"Node{i}"} for i in range(len(Xnode))]
+    dropdown_content = [[f"Node{i}",f"Node{i}","Not Selected"] for i in range(len(Xnode))]
+    dropdown = pd.DataFrame(dropdown_content,columns = ['label','value','title'])
     config.ev_dropdown = dropdown
+    # config.table_of_ev_inputs = dynamic_source_destination_maker(number_of_ev)
+    # print(config.table_of_ev_inputs)
 
-    return f"Number of ev: {number_of_ev}", config.positions, config.polygon, config.center, config.zoomLevel, \
-           dropdown, html.Div([
-        dynamic_source_destination_maker(number_of_ev)
-    ])
+    table_content = [ [f"SRC{(i//2) + 1}" if i%2==0 else f"DST{(i//2) + 1}",
+    f"SRC{(i//2) + 1}" if i%2==0 else f"DST{(i//2) + 1}"] for i in range(2*number_of_ev)]
+    table = pd.DataFrame(table_content,columns = ['label','value'])
+    config.table_of_ev_inputs = table
+    return f"Number of ev: {number_of_ev}", \
+            config.ev_dropdown.to_dict('records'),\
+        config.table_of_ev_inputs.to_dict('records')
         
+
+
+@app.callback(
+    [
+     Output(component_id='dl_er_input_selected_nodes', component_property='children'),
+     Output(component_id='ev_sdoutput_table', component_property='data'),
+    ],
+    inputs = [
+                Input('er_ev_input_dropdown', 'value'),  
+            ],
+    state = [
+        State(component_id='ev_sdinput_table', component_property='value')
+    ]
+    
+)
+def er_update_inputs(node,vechicle):
+    ctx=dash.callback_context
+    if not ctx.triggered or node==None or vechicle ==None:
+        return dash.no_update, dash.no_update
+    
+    output_data = {"vehicle_id": vechicle,"node_id": node}
+    config.ev_sdinput = config.ev_sdinput.append(output_data,ignore_index=True)
+    
+    vechicle_id = int(vechicle[3:])
+    node_id = int(node[4:])
+    algo_input.append([vechicle_id,node_id])
+    config.output_positions.append(
+        dl.Marker(position=[Ynode[node_id],Xnode[node_id]],children=dl.Tooltip(node_id, direction='top', permanent=True),
+        riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]}))
+    print(algo_input)
+    return config.output_positions, config.ev_sdinput.to_dict('records')
+    
+
+@app.callback(
+    [
+     Output(component_id='dl_er_output_all_nodes', component_property='children'),
+     Output("dl_er_output_circle", "children"),
+     Output(component_id='er_output_map', component_property='center'),
+     Output(component_id='er_output_map', component_property='zoom'),
+    ],
+    inputs = [
+                Input('er_generate_paths_button', 'n_clicks'),  
+            ],
+    
+)
+def generate_paths(nclicks):
+    if nclicks is None:
+        return config.positions, config.polygon, config.center, config.zoomLevel
+    
+    my_file = open('queries.txt', "w+")
+    my_file.write("%d \n" %len(algo_input))
+
+    for i in range(0,len(algo_input),2):
+        my_file.write("%d " %algo_input[i][1])
+        my_file.write("%d \n" %algo_input[i+1][1])
+    
+    return config.positions, config.polygon, config.center, config.zoomLevel
+
 
 # Class helping to create the dynamic values of radioButtons
 class geeks:  
@@ -322,14 +403,13 @@ def dynamic_source_destination_maker(val):
         list.append(geeks(i, 'Source', 'SRC'))
     for i in range(1,val+1):
         list.append(geeks(i, 'Destination','DTN'))
-    return dbc.RadioItems(
-    id='ec_ev_input_selection',
-    options=[
+
+    return [
         {'label': 'Vehicle {}: {}'.format(obj.vnumber,obj.itype), 'value': obj.value+' {}'.format(obj.vnumber)} for obj in list
-        ],
-    inline=True,
-    value=list[0].value
-     )
+        ]
+    
+
+
 # @app.callback(
 #     [
 #      Output(component_id='dl_er_input_selected_nodes', component_property='children'),

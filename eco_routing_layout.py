@@ -142,12 +142,16 @@ body = dbc.Container([
                                     [
                                     dl.Overlay(dl.LayerGroup(id="dl_er_input_circle"), name="Search Area", checked=True),
                                     dl.Overlay(dl.LayerGroup(id="dl_er_input_all_nodes"), name="General Nodes", checked=False),
-                                    dl.Overlay(dl.LayerGroup(id="dl_er_input_selected_nodes"), name="selected Nodes", checked=False),
+                                    dl.Overlay(dl.LayerGroup(id="dl_er_input_selected_nodes"), name="selected Nodes", checked=True),
                                     ]
                                 ) 
                         ]
                         ,id="er_input_map"),
-                style = {'width': '70%', 'display': 'inline-block'}
+                style = {'width': '50%', 'display': 'inline-block'}
+            ),
+            html.Div(
+                dcc.Dropdown(options=[{'label':'None','value':'Kunj'}], value="", id="ev_sdinput_table"),
+                style = {'width': '20%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
             ),
             html.Div(
                 dcc.Dropdown(options=[], value="", id="er_ev_input_dropdown"),
@@ -158,15 +162,39 @@ body = dbc.Container([
     
     html.Br(),
     html.Hr(),
-     html.Div(
-        id='ec_ev_sdinput_table'
-    ),
-    html.Div(
-        id='source_destination_inputs1'
-    ),
-    
-],style=CONTAINER_STYLE)
+     
+    html.Br(),
+     html.Div([
+                dash.dash_table.DataTable(
+            id='ev_sdoutput_table',
+            columns=[{'id':'vehicle_id','name':'Input'},{'id':'node_id','name':'Selected Node'},],
+            data=[],
+            style_table={'overflowX': 'scroll'},
+            style_as_list_view=True,
+            style_cell={'textAlign': 'center'},
+            style_header={'backgroundColor': 'white','fontWeight': 
+            'bold'},
+         )
+        ]),
+    html.Div(dbc.Spinner(children=[dbc.Button("Inputs for vehicles",id="er_generate_paths_button",color="primary")],size="sm", color="primary",id="spinner_2"))
+     ,html.Br(),
+    html.Hr(),
+     html.H1("Visualise Generated Paths", style={'text-align': 'center'}),
+    dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
+                        center=Search_Region,
+                        zoom=5,
+                        children=[
+                            dl.LayersControl(
+                                [dl.TileLayer()] +
+                                    [
+                                    dl.Overlay(dl.LayerGroup(id="dl_er_output_circle"), name="Search Area", checked=True),
+                                    dl.Overlay(dl.LayerGroup(id="dl_er_output_all_nodes"), name="General Nodes", checked=False),
+                                    ]
+                                ) 
+                        ]
+                        ,id="er_output_map"),
 
+])
 
 
 layout = html.Div([

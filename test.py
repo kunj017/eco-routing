@@ -8,3 +8,6 @@ mainDf = pd.DataFrame(test, columns = ['label','value','title'])
 # dropdown = [i for i in mainDf]
 dropdown = [{'label':i['label'], 'value': i['value'], 'title':i['title']} for index, i in mainDf.iterrows()]
 print(dropdown)
+mainDf = mainDf.append({'label':'Kunj','value':'taneja','title':'lawde lag gye'},ignore_index=True)
+dropdown = [{'label':i['label'], 'value': i['value'], 'title':i['title']} for index, i in mainDf.iterrows()]
+print(dropdown)
