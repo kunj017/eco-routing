@@ -180,19 +180,33 @@ body = dbc.Container([
      ,html.Br(),
     html.Hr(),
      html.H1("Visualise Generated Paths", style={'text-align': 'center'}),
-    dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
-                        center=Search_Region,
-                        zoom=5,
-                        children=[
-                            dl.LayersControl(
-                                [dl.TileLayer()] +
-                                    [
-                                    dl.Overlay(dl.LayerGroup(id="dl_er_output_circle"), name="Search Area", checked=True),
-                                    dl.Overlay(dl.LayerGroup(id="dl_er_output_all_nodes"), name="General Nodes", checked=False),
-                                    ]
-                                ) 
-                        ]
-                        ,id="er_output_map"),
+     html.Div(
+         [
+            html.Div(
+                dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
+                            center=Search_Region,
+                            zoom=5,
+                            children=[
+                                dl.LayersControl(
+                                    [dl.TileLayer()] +
+                                        [
+                                        dl.Overlay(dl.LayerGroup(id="dl_er_output_circle"), name="Search Area", checked=True),
+                                        dl.Overlay(dl.LayerGroup(id="dl_er_output_all_nodes"), name="General Nodes", checked=False),
+                                        dl.Overlay(dl.LayerGroup(id="dl_er_output_path"), name="Path", checked=True),
+                                        ]
+                                    ) 
+                            ]
+                            ,id="er_output_map"),
+                    style = {'width': '70%', 'display': 'inline-block'}
+            ),
+            html.Div(
+                dcc.Dropdown(options=[], value="", id="ev_path_table"),
+                style = {'width': '20%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
+            ),
+
+        ]
+     ),
+    
 
 ])
 

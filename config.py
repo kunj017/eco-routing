@@ -11,4 +11,5 @@ polygon = []
 center = None
 zoomLevel = 0
 table_of_ev_inputs = pd.DataFrame(columns = ['label','value','title'])
+path_inputs = pd.DataFrame(columns = ['label','value'])
 location = None

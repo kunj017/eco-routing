@@ -313,8 +313,11 @@ def er_input_ev(nclicks,number_of_ev):
                            config.table_of_ev_inputs.to_dict('records')
         return "Enter number of EVs",[], []
     
-    global input_ev_locations, Xnode
+    global input_ev_locations, Xnode, algo_input
     input_ev_locations = []
+    algo_input = []
+    config.output_positions = []
+    config.ev_sdinput = pd.DataFrame()
     # dropdown = [{'label':f"Node{i}", 'value':f"Node{i}"} for i in range(len(Xnode))]
     dropdown_content = [[f"Node{i}",f"Node{i}","Not Selected"] for i in range(len(Xnode))]
     dropdown = pd.DataFrame(dropdown_content,columns = ['label','value','title'])
@@ -352,7 +355,7 @@ def er_update_inputs(node,vechicle):
     
     output_data = {"vehicle_id": vechicle,"node_id": node}
     config.ev_sdinput = config.ev_sdinput.append(output_data,ignore_index=True)
-    
+    global algo_input
     vechicle_id = int(vechicle[3:])
     node_id = int(node[4:])
     algo_input.append([vechicle_id,node_id])
@@ -363,30 +366,145 @@ def er_update_inputs(node,vechicle):
     return config.output_positions, config.ev_sdinput.to_dict('records')
     
 
+# @app.callback(
+#     [
+#      Output(component_id='dl_er_output_all_nodes', component_property='children'),
+#      Output("dl_er_output_circle", "children"),
+#      Output(component_id='er_output_map', component_property='center'),
+#      Output(component_id='er_output_map', component_property='zoom'),
+#      Output(component_id='dl_er_output_path', component_property='children'),
+#     ],
+#     inputs = [
+#                 Input('er_generate_paths_button', 'n_clicks'),  
+#             ],
+    
+# )
+# def generate_paths(nclicks):
+#     if nclicks is None:
+#         return config.positions, config.polygon, config.center, config.zoomLevel, dash.no_update
+    
+#     my_file = open('queries.txt', "w+")
+#     my_file.write("%d \n" %(len(algo_input)/2))
+
+#     for i in range(0,len(algo_input),2):
+#         my_file.write("%d " %algo_input[i][1])
+#         my_file.write("%d \n" %algo_input[i+1][1])
+    
+#     my_file.close()
+#     subproces = subprocess.check_call("./dij")
+    
+#     my_file = open("output_graph.txt","r")
+
+#     global paths
+#     paths = []
+
+#     my_file = open("output_graph.txt","r")
+
+#     Q = int(my_file.readline())
+#     color_index = 0
+#     color_list = ["red","orange","yellow","green","pink"]
+
+#     print(f"We got Q : {Q}")
+
+#     for i in range(Q):
+#         n = int(my_file.readline())
+#         arr = list(map(int,my_file.readline().split()))
+#         print(arr)
+#         path = []
+#         for j in range(len(arr)-1):
+#             corners = [[Ynode[arr[j]],Xnode[arr[j]]], [Ynode[arr[j+1]],Xnode[arr[j+1]]]]
+#             polyline = dl.Polyline(color=color_list[color_index],weight=4,positions=corners)
+#             path.append(polyline)
+
+#         color_index = (color_index+1)%len(color_list)
+#         paths.append(path)
+    
+
+        
+
+    
+#     return config.positions, config.polygon, config.center, config.zoomLevel, paths[0]
+
+
+
 @app.callback(
     [
      Output(component_id='dl_er_output_all_nodes', component_property='children'),
      Output("dl_er_output_circle", "children"),
      Output(component_id='er_output_map', component_property='center'),
      Output(component_id='er_output_map', component_property='zoom'),
+     Output(component_id='dl_er_output_path', component_property='children'),
+     Output(component_id='ev_path_table', component_property='options'),
     ],
     inputs = [
-                Input('er_generate_paths_button', 'n_clicks'),  
+                Input('er_generate_paths_button', 'n_clicks'), 
+                Input('ev_path_table', 'value'),  
             ],
     
 )
-def generate_paths(nclicks):
+def generate_paths(nclicks, value):
     if nclicks is None:
-        return config.positions, config.polygon, config.center, config.zoomLevel
+        return config.positions, config.polygon, config.center, config.zoomLevel, dash.no_update, []
     
-    my_file = open('queries.txt', "w+")
-    my_file.write("%d \n" %len(algo_input))
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    for i in range(0,len(algo_input),2):
-        my_file.write("%d " %algo_input[i][1])
-        my_file.write("%d \n" %algo_input[i+1][1])
-    
-    return config.positions, config.polygon, config.center, config.zoomLevel
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+    if trigger_id == "er_generate_paths_button":
+
+        my_file = open('queries.txt', "w+")
+        my_file.write("%d \n" %(len(algo_input)/2))
+
+        for i in range(0,len(algo_input),2):
+            my_file.write("%d " %algo_input[i][1])
+            my_file.write("%d \n" %algo_input[i+1][1])
+        
+        my_file.close()
+        subproces = subprocess.check_call("./dij")
+        
+        my_file = open("output_graph.txt","r")
+
+        global paths
+        paths = []
+
+        my_file = open("output_graph.txt","r")
+
+        Q = int(my_file.readline())
+        color_index = 0
+        color_list = ["red","orange","yellow","green","pink"]
+
+        print(f"We got Q : {Q}")
+
+        for i in range(Q):
+            n = int(my_file.readline())
+            arr = list(map(int,my_file.readline().split()))
+            print(arr)
+            path = []
+            for j in range(len(arr)-1):
+                corners = [[Ynode[arr[j]],Xnode[arr[j]]], [Ynode[arr[j+1]],Xnode[arr[j+1]]]]
+                polyline = dl.Polyline(color=color_list[color_index],weight=4,positions=corners)
+                path.append(polyline)
+
+            color_index = (color_index+1)%len(color_list)
+            paths.append(path)
+        
+        config.path_inputs = pd.DataFrame(columns = ['label','value'])
+        for i in range(Q):
+            dropdown_data = {'label':f"Path{i}", "value":f"Path{i}"}
+            config.path_inputs = config.path_inputs.append(dropdown_data,ignore_index=True)
+        
+        return config.positions, config.polygon, config.center, config.zoomLevel, [], config.path_inputs.to_dict('records')
+
+    else:
+
+        path_id = int(value[4:])
+        return config.positions, config.polygon, config.center, config.zoomLevel,paths[path_id], config.path_inputs.to_dict('records')
+
+
+
+
 
 
 # Class helping to create the dynamic values of radioButtons
@@ -408,6 +526,8 @@ def dynamic_source_destination_maker(val):
         {'label': 'Vehicle {}: {}'.format(obj.vnumber,obj.itype), 'value': obj.value+' {}'.format(obj.vnumber)} for obj in list
         ]
     
+
+
 
 
 # @app.callback(
