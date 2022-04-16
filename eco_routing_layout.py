@@ -86,10 +86,23 @@ total_number_vehicles = dbc.FormGroup(
     row=True,
 )
 
+total_number_cs = dbc.FormGroup(
+    [
+        dbc.Label("Number of CS:", html_for="no_of_cs", width=2),
+        dbc.Col(
+            dbc.Input(
+                type="number", id="er_no_of_cs_input", placeholder="Enter total no of cs",min=1, step=1,max=10
+            ),
+            width=10,
+        ),
+    ],
+    row=True,
+)
+
 
 all_nodes_button = dbc.Spinner(children=[dbc.Button("Find All Nodes",id="er_all_nodes_button",color="primary")],size="sm", color="primary",id="spinner_1")
 
-all_nodes_form = dbc.Form([location_input,autocomplete_list_ecorouting,radius_input,all_nodes_button])
+all_nodes_form = dbc.Form([location_input,autocomplete_list_ecorouting,radius_input,total_number_cs,all_nodes_button])
 
 vehicles_input_form = dbc.Form([total_number_vehicles,dbc.Spinner(children=[dbc.Button("Inputs for vehicles",id="er_vehicles_button",color="primary")],size="sm", color="primary",id="spinner_2")])
 
@@ -117,8 +130,10 @@ body = dbc.Container([
                 dl.LayersControl(
                [dl.TileLayer()] +
                 [
-                dl.Overlay(dl.LayerGroup(id="dl_er_all_nodes"), name="General Nodes", checked=True),
-                dl.Overlay(dl.LayerGroup(id="dl_er_circle"), name="Search Area", checked=True),]
+                dl.Overlay(dl.LayerGroup(id="dl_er_all_nodes"), name="General Nodes", checked=False),
+                dl.Overlay(dl.LayerGroup(id="dl_er_circle"), name="Search Area", checked=True),
+                dl.Overlay(dl.LayerGroup(id="dl_er_cs_nodes"), name="Charging Stations", checked=True),
+                ]
               ) 
             ], id="er_result_map"),
     html.Br(),
@@ -143,6 +158,7 @@ body = dbc.Container([
                                     dl.Overlay(dl.LayerGroup(id="dl_er_input_circle"), name="Search Area", checked=True),
                                     dl.Overlay(dl.LayerGroup(id="dl_er_input_all_nodes"), name="General Nodes", checked=False),
                                     dl.Overlay(dl.LayerGroup(id="dl_er_input_selected_nodes"), name="selected Nodes", checked=True),
+                                    dl.Overlay(dl.LayerGroup(id="dl_er_input_cs_nodes"), name="Charging Stations", checked=True),
                                     ]
                                 ) 
                         ]
@@ -197,10 +213,14 @@ body = dbc.Container([
                                     ) 
                             ]
                             ,id="er_output_map"),
-                    style = {'width': '70%', 'display': 'inline-block'}
+                    style = {'width': '50%', 'display': 'inline-block'}
             ),
             html.Div(
                 dcc.Dropdown(options=[], value="", id="ev_path_table"),
+                style = {'width': '20%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
+            ),
+            html.Div(
+                dcc.Dropdown(options=[], value="", id="ev_path_index_table"),
                 style = {'width': '20%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
             ),
 

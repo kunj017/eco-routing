@@ -22,7 +22,7 @@ from IPython import get_ipython
 from math import asin,cos,pi,sin, log2, atan2, sqrt
 import subprocess
 import config
-
+import random
 
 from navbar import Navbar
 from server import app
@@ -39,6 +39,7 @@ input_ev_locations = []
 Xnode = []
 Ynode = []
 algo_input = []
+path_id = None
 @app.callback(
     [Output("er_autocomplete_list","children"),
      Output("er_location_input","value")],
@@ -142,10 +143,12 @@ def default_location():
     [
      Output(component_id='er_num_all_nodes_div', component_property='children'),
      Output(component_id='dl_er_all_nodes', component_property='children'),
+     Output(component_id='dl_er_cs_nodes', component_property='children'),
      Output("dl_er_circle", "children"),
      Output(component_id='er_result_map', component_property='center'),
      Output(component_id='er_result_map', component_property='zoom'),
      Output(component_id='dl_er_input_all_nodes', component_property='children'),
+     Output(component_id='dl_er_input_cs_nodes', component_property='children'),
      Output("dl_er_input_circle", "children"),
      Output(component_id='er_input_map', component_property='center'),
      Output(component_id='er_input_map', component_property='zoom'),
@@ -154,22 +157,26 @@ def default_location():
     state = [
            State(component_id='er_location_input', component_property='value'),
            State(component_id='er_radius_input', component_property='value'),
+           State(component_id='er_no_of_cs_input', component_property='value'),
            ]
 )
-def hp_update_map(n_clicks, location, radius):
+def hp_update_map(n_clicks, location, radius, number_of_cs):
 
     if n_clicks is None:
         if config.num_of_tot_nodes != 0:
-            return 'Total Number of Nodes: {}'.format(config.num_of_tot_nodes),config.positions,\
-                    config.polygon,config.center, config.zoomLevel,config.positions,\
+            return 'Total Number of Nodes: {}'.format(config.num_of_tot_nodes),config.positions,config.cs_positions,\
+                    config.polygon,config.center, config.zoomLevel,config.positions,config.cs_positions,\
                     config.polygon,config.center, config.zoomLevel
 
         if n_clicks is None:
             fig, center, zoomLevel = default_location()    
-            return '' ,dash.no_update,dash.no_update,center, zoomLevel,dash.no_update,dash.no_update,center, zoomLevel
+            return '' ,dash.no_update,dash.no_update,dash.no_update,center, zoomLevel,dash.no_update,\
+                dash.no_update,dash.no_update,center, zoomLevel
+
 
     global Xnode, Ynode
     fig, num_of_tot_nodes, G1, A, Xnode, Ynode, center, zoomLevel, latitude, longitude = find_all_nodes(location, radius)
+    
 
     testcases = []
     corners = []
@@ -188,10 +195,26 @@ def hp_update_map(n_clicks, location, radius):
         temp.append(Xnode[i])
         positions.append(dl.Marker(position=temp,children=dl.Tooltip(i, direction='top', permanent=True),riseOnHover=True))
     
+    # info related to cs
+    config.num_of_cs = number_of_cs
+    config.cs_nodes = random.sample(range(0,num_of_tot_nodes),number_of_cs)
+    print(config.cs_nodes)
+    config.cs_positions = [dl.Marker(position=[Ynode[i],Xnode[i]],children=dl.Tooltip(i, direction='top', permanent=True),\
+        riseOnHover=True,icon={'iconUrl':'https://icon-library.com/images/station-icon/station-icon-14.jpg','iconSize':[30,40]}) \
+            for i in config.cs_nodes]
+
+    my_file = open('cs_input.txt', "w+")
+    my_file.write("%d \n" %int(config.num_of_cs))
+    for i in config.cs_nodes:
+        my_file.write("%d " %int(i))
+
+    my_file.write("\n")
+
     # setting the global variables in config file
     config.num_of_tot_nodes, config.positions, config.polygon, config.center, config.zoomLevel = num_of_tot_nodes, positions, polygon,center, zoomLevel
     
-    return 'Total Number of Nodes: {}'.format(num_of_tot_nodes),positions, polygon,center, zoomLevel, positions, polygon,center, zoomLevel
+    return 'Total Number of Nodes: {}'.format(num_of_tot_nodes),positions,config.cs_positions,\
+         polygon,center, zoomLevel, positions, config.cs_positions, polygon,center, zoomLevel
 
 
 
@@ -278,6 +301,8 @@ def get_all_nodes(latitude,longitude,radius):
     list2=B1.row
     list3=B1.col
 
+
+
     my_file = open('input_graph.txt', "w+")
     my_file.write("%d \n" %len(G1.nodes))
     my_file.write("%d \n" %len(list1))
@@ -286,6 +311,9 @@ def get_all_nodes(latitude,longitude,radius):
         my_file.write("%d " %(list2[i]))  
         my_file.write("%d " %(list3[i]))  
         my_file.write("%d \n" %int(list1[i])) 
+    
+    
+    my_file.close()
 
     return len(G1.nodes), G1, A, Xnode, Ynode
 
@@ -318,13 +346,11 @@ def er_input_ev(nclicks,number_of_ev):
     algo_input = []
     config.output_positions = []
     config.ev_sdinput = pd.DataFrame()
-    # dropdown = [{'label':f"Node{i}", 'value':f"Node{i}"} for i in range(len(Xnode))]
+    
     dropdown_content = [[f"Node{i}",f"Node{i}","Not Selected"] for i in range(len(Xnode))]
     dropdown = pd.DataFrame(dropdown_content,columns = ['label','value','title'])
     config.ev_dropdown = dropdown
-    # config.table_of_ev_inputs = dynamic_source_destination_maker(number_of_ev)
-    # print(config.table_of_ev_inputs)
-
+    
     table_content = [ [f"SRC{(i//2) + 1}" if i%2==0 else f"DST{(i//2) + 1}",
     f"SRC{(i//2) + 1}" if i%2==0 else f"DST{(i//2) + 1}"] for i in range(2*number_of_ev)]
     table = pd.DataFrame(table_content,columns = ['label','value'])
@@ -366,65 +392,6 @@ def er_update_inputs(node,vechicle):
     return config.output_positions, config.ev_sdinput.to_dict('records')
     
 
-# @app.callback(
-#     [
-#      Output(component_id='dl_er_output_all_nodes', component_property='children'),
-#      Output("dl_er_output_circle", "children"),
-#      Output(component_id='er_output_map', component_property='center'),
-#      Output(component_id='er_output_map', component_property='zoom'),
-#      Output(component_id='dl_er_output_path', component_property='children'),
-#     ],
-#     inputs = [
-#                 Input('er_generate_paths_button', 'n_clicks'),  
-#             ],
-    
-# )
-# def generate_paths(nclicks):
-#     if nclicks is None:
-#         return config.positions, config.polygon, config.center, config.zoomLevel, dash.no_update
-    
-#     my_file = open('queries.txt', "w+")
-#     my_file.write("%d \n" %(len(algo_input)/2))
-
-#     for i in range(0,len(algo_input),2):
-#         my_file.write("%d " %algo_input[i][1])
-#         my_file.write("%d \n" %algo_input[i+1][1])
-    
-#     my_file.close()
-#     subproces = subprocess.check_call("./dij")
-    
-#     my_file = open("output_graph.txt","r")
-
-#     global paths
-#     paths = []
-
-#     my_file = open("output_graph.txt","r")
-
-#     Q = int(my_file.readline())
-#     color_index = 0
-#     color_list = ["red","orange","yellow","green","pink"]
-
-#     print(f"We got Q : {Q}")
-
-#     for i in range(Q):
-#         n = int(my_file.readline())
-#         arr = list(map(int,my_file.readline().split()))
-#         print(arr)
-#         path = []
-#         for j in range(len(arr)-1):
-#             corners = [[Ynode[arr[j]],Xnode[arr[j]]], [Ynode[arr[j+1]],Xnode[arr[j+1]]]]
-#             polyline = dl.Polyline(color=color_list[color_index],weight=4,positions=corners)
-#             path.append(polyline)
-
-#         color_index = (color_index+1)%len(color_list)
-#         paths.append(path)
-    
-
-        
-
-    
-#     return config.positions, config.polygon, config.center, config.zoomLevel, paths[0]
-
 
 
 @app.callback(
@@ -435,22 +402,24 @@ def er_update_inputs(node,vechicle):
      Output(component_id='er_output_map', component_property='zoom'),
      Output(component_id='dl_er_output_path', component_property='children'),
      Output(component_id='ev_path_table', component_property='options'),
+     Output(component_id='ev_path_index_table', component_property='options'),
     ],
     inputs = [
                 Input('er_generate_paths_button', 'n_clicks'), 
                 Input('ev_path_table', 'value'),  
+                Input('ev_path_index_table', 'value'),  
             ],
     
 )
-def generate_paths(nclicks, value):
+def generate_paths(nclicks, path_id_input, path_index_input):
     if nclicks is None:
-        return config.positions, config.polygon, config.center, config.zoomLevel, dash.no_update, []
+        return config.positions, config.polygon, config.center, config.zoomLevel, dash.no_update, [], []
     
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     if not ctx.triggered:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
     if trigger_id == "er_generate_paths_button":
 
@@ -462,7 +431,8 @@ def generate_paths(nclicks, value):
             my_file.write("%d \n" %algo_input[i+1][1])
         
         my_file.close()
-        subproces = subprocess.check_call("./dij")
+        # subproces = subprocess.check_call("g++ dijkstra.cpp -o dij")
+        subproces = subprocess.check_call("./algo")
         
         my_file = open("output_graph.txt","r")
 
@@ -478,31 +448,42 @@ def generate_paths(nclicks, value):
         print(f"We got Q : {Q}")
 
         for i in range(Q):
-            n = int(my_file.readline())
-            arr = list(map(int,my_file.readline().split()))
-            print(arr)
-            path = []
-            for j in range(len(arr)-1):
-                corners = [[Ynode[arr[j]],Xnode[arr[j]]], [Ynode[arr[j+1]],Xnode[arr[j+1]]]]
-                polyline = dl.Polyline(color=color_list[color_index],weight=4,positions=corners)
-                path.append(polyline)
+            number_of_paths = int(my_file.readline())
+            temp = []
+            for id in range(number_of_paths):
+                n,energy = list(map(int,my_file.readline().split()))
+                arr = list(map(int,my_file.readline().split()))
+                print(arr)
+                path = []
+                for j in range(len(arr)-1):
+                    corners = [[Ynode[arr[j]],Xnode[arr[j]]], [Ynode[arr[j+1]],Xnode[arr[j+1]]]]
+                    polyline = dl.Polyline(color=color_list[color_index],weight=4,positions=corners)
+                    path.append(polyline)
 
-            color_index = (color_index+1)%len(color_list)
-            paths.append(path)
+                color_index = (color_index+1)%len(color_list)
+                temp.append(path)
+
+            paths.append(temp)
         
         config.path_inputs = pd.DataFrame(columns = ['label','value'])
         for i in range(Q):
             dropdown_data = {'label':f"Path{i}", "value":f"Path{i}"}
             config.path_inputs = config.path_inputs.append(dropdown_data,ignore_index=True)
         
-        return config.positions, config.polygon, config.center, config.zoomLevel, [], config.path_inputs.to_dict('records')
+        return config.positions, config.polygon, config.center, config.zoomLevel, [], config.path_inputs.to_dict('records'), []
+
+    elif trigger_id == "ev_path_table":
+        global path_id
+        path_id = int(path_id_input[4:])
+        options = []
+        for i in range(len(paths[path_id])):
+            options.append({'label':f"Path_option{i}", "value":f"Path_option{i}"})
+        return config.positions, config.polygon, config.center, config.zoomLevel,[], config.path_inputs.to_dict('records'), options
 
     else:
-
-        path_id = int(value[4:])
-        return config.positions, config.polygon, config.center, config.zoomLevel,paths[path_id], config.path_inputs.to_dict('records')
-
-
+        path_index = int(path_index_input[11:])
+        return config.positions, config.polygon, config.center, config.zoomLevel,paths[path_id][path_index], dash.no_update, dash.no_update
+        
 
 
 
@@ -529,28 +510,3 @@ def dynamic_source_destination_maker(val):
 
 
 
-
-# @app.callback(
-#     [
-#      Output(component_id='dl_er_input_selected_nodes', component_property='children'),
-#      Output("dl_er_input_circle", "children"),
-#      Output(component_id='er_input_map', component_property='center'),
-#      Output(component_id='er_input_map', component_property='zoom'),
-#      Output(component_id='er_ev_input_dropdown', component_property='options')
-#     ],
-#     inputs = [Input('er_input_map', 'click_lat_lng'),
-#                 Input({'type': 'er_ev_input_dropdown_item', 'index': ALL}, 'n_clicks')
-#                 ],
-    
-# )
-# def hp_update_map(position,ev):
-#     ctx=dash.callback_context
-#     if not ctx.triggered:
-#         return input_ev_locations, config.polygon, config.center, config.zoomLevel, config.ev_dropdown
-    
-#     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-#     if trigger_id == 'er_input_map':
-#         previous_input =  json.dumps(position)
-#         print(previous_input)
-    
-#     return input_ev_locations, config.polygon, config.center, config.zoomLevel, config.ev_dropdown
