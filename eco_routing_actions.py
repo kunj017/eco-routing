@@ -388,7 +388,7 @@ def er_update_inputs(node,vechicle):
     config.output_positions.append(
         dl.Marker(position=[Ynode[node_id],Xnode[node_id]],children=dl.Tooltip(node_id, direction='top', permanent=True),
         riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]}))
-    print(algo_input)
+
     return config.output_positions, config.ev_sdinput.to_dict('records')
     
 

@@ -217,11 +217,11 @@ body = dbc.Container([
             ),
             html.Div(
                 dcc.Dropdown(options=[], value="", id="ev_path_table"),
-                style = {'width': '20%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
+                style = {'width': '22%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
             ),
             html.Div(
                 dcc.Dropdown(options=[], value="", id="ev_path_index_table"),
-                style = {'width': '20%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
+                style = {'width': '22%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
             ),
 
         ]
