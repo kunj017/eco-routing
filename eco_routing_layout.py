@@ -86,6 +86,32 @@ total_number_vehicles = dbc.FormGroup(
     row=True,
 )
 
+initial_charge = dbc.FormGroup(
+    [
+        dbc.Label("Initial charge:", html_for="no_of_vehicles", width=2),
+        dbc.Col(
+            dbc.Input(
+                type="number", id="er_inital_charge", placeholder="Enter inital charge",min=1, step=1,max=1000
+            ),
+            width=10,
+        ),
+    ],
+    row=True,
+)
+
+ev_capacity = dbc.FormGroup(
+    [
+        dbc.Label("Ev capacity:", html_for="no_of_vehicles", width=2),
+        dbc.Col(
+            dbc.Input(
+                type="number", id="er_ev_capacity", placeholder="Enter capacity of ev ( > inital charge )",min=1, step=1,max=1000
+            ),
+            width=10,
+        ),
+    ],
+    row=True,
+)
+
 total_number_cs = dbc.FormGroup(
     [
         dbc.Label("Number of CS:", html_for="no_of_cs", width=2),
@@ -99,12 +125,24 @@ total_number_cs = dbc.FormGroup(
     row=True,
 )
 
+cs_input_dropdown = dbc.FormGroup(
+    [
+        dbc.Label("Select CS:", html_for="no_of_cs", width=2),
+        dbc.Col(
+            dcc.Dropdown(options=[{'label':'None','value':'Kunj'}], value="", id="cs_input_table", multi=True),
+            width=10,
+        ),
+    ],
+    row=True,
+)
+# cs_input_dropdown = dcc.Dropdown(options=[{'label':'None','value':'Kunj'}], value="", id="cs_input_table"),
 
 all_nodes_button = dbc.Spinner(children=[dbc.Button("Find All Nodes",id="er_all_nodes_button",color="primary")],size="sm", color="primary",id="spinner_1")
 
 all_nodes_form = dbc.Form([location_input,autocomplete_list_ecorouting,radius_input,total_number_cs,all_nodes_button])
 
-vehicles_input_form = dbc.Form([total_number_vehicles,dbc.Spinner(children=[dbc.Button("Inputs for vehicles",id="er_vehicles_button",color="primary")],size="sm", color="primary",id="spinner_2")])
+vehicles_input_form = dbc.Form([total_number_vehicles,initial_charge,ev_capacity, cs_input_dropdown,dbc.Spinner(children=[dbc.Button("Inputs for vehicles",id="er_vehicles_button",color="primary")],size="sm", color="primary",id="spinner_2")])
+# cs_input_form = dbc.Form([total_number_vehicles,dbc.Spinner(children=[dbc.Button("Inputs for vehicles",id="er_vehicles_button",color="primary")],size="sm", color="primary",id="spinner_2")])
 
 
 nav = Navbar()
@@ -116,6 +154,7 @@ body = dbc.Container([
     html.Br(),
     html.Br(),  
     html.H1("Eco Routing App", style={'text-align': 'center'},id="bluffing_input"),   
+    html.Hr(),
     html.Br(),
     all_nodes_form, 
     html.Div(id="verificationComments"),
@@ -123,6 +162,7 @@ body = dbc.Container([
     html.Div(id='er_num_all_nodes_div'),
     html.Br(),
     html.H1("Visualise Generated Nodes", style={'text-align': 'center'}),
+    html.Hr(),
     dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
             center=Search_Region,
             zoom=5,
@@ -138,17 +178,25 @@ body = dbc.Container([
             ], id="er_result_map"),
     html.Br(),
     html.Br(),
-    
+    html.H1("EV initial data", style={'text-align': 'center'}),
+    html.Hr(),
+    html.Br(),
     vehicles_input_form ,
+    # html.Br(),
+    # html.Div(
+    #     dcc.Dropdown(options=[{'label':'None','value':'Kunj'}], value="", id="cs_input_table"),
+    # ),
 
     html.H1("Input for EVs", style={'text-align': 'center'}),
+    html.Hr(),
     html.Br(),
     html.Div(id='er_num_all_ev'),
-
     html.Div(
-        [
-            html.Div(
-                dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
                         center=Search_Region,
                         zoom=5,
                         children=[
@@ -158,23 +206,66 @@ body = dbc.Container([
                                     dl.Overlay(dl.LayerGroup(id="dl_er_input_circle"), name="Search Area", checked=True),
                                     dl.Overlay(dl.LayerGroup(id="dl_er_input_all_nodes"), name="General Nodes", checked=False),
                                     dl.Overlay(dl.LayerGroup(id="dl_er_input_selected_nodes"), name="selected Nodes", checked=True),
-                                    dl.Overlay(dl.LayerGroup(id="dl_er_input_cs_nodes"), name="Charging Stations", checked=True),
+                                    dl.Overlay(dl.LayerGroup(id="dl_er_input_cs_nodes"), name="Charging Stations", checked=False),
+                                    dl.Overlay(dl.LayerGroup(id="dl_er_input_cs_selected_nodes"), name="Selected Charging Stations", checked=True),
                                     ]
                                 ) 
                         ]
                         ,id="er_input_map"),
-                style = {'width': '50%', 'display': 'inline-block'}
-            ),
-            html.Div(
-                dcc.Dropdown(options=[{'label':'None','value':'Kunj'}], value="", id="ev_sdinput_table"),
-                style = {'width': '20%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
-            ),
-            html.Div(
-                dcc.Dropdown(options=[], value="", id="er_ev_input_dropdown"),
-                style = {'width': '20%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
-            )
-        ]
+                    ],
+                    width = 6
+                ),
+                dbc.Col(
+                    [
+                        dcc.Dropdown(options=[{'label':'None','value':'Kunj'}], value="", id="ev_sdinput_table"),
+                    ],
+                    width = 2
+                ),
+                dbc.Col(
+                    [
+                        dcc.Dropdown(options=[], value="", id="er_ev_input_dropdown"),
+                    ],
+                    width = 2
+                ),
+                dbc.Col(
+                    [
+                        dbc.Spinner(children=[dbc.Button("Push Input",id="er_sd_input_button",color="primary")],size="sm", color="primary",id="spinner_1"),
+                    ],
+                    width = 2
+                ),
+            ]
+        )
     ),
+    # html.Div(
+    #     [
+    #         html.Div(
+    #             dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
+    #                     center=Search_Region,
+    #                     zoom=5,
+    #                     children=[
+    #                         dl.LayersControl(
+    #                             [dl.TileLayer()] +
+    #                                 [
+    #                                 dl.Overlay(dl.LayerGroup(id="dl_er_input_circle"), name="Search Area", checked=True),
+    #                                 dl.Overlay(dl.LayerGroup(id="dl_er_input_all_nodes"), name="General Nodes", checked=False),
+    #                                 dl.Overlay(dl.LayerGroup(id="dl_er_input_selected_nodes"), name="selected Nodes", checked=True),
+    #                                 dl.Overlay(dl.LayerGroup(id="dl_er_input_cs_nodes"), name="Charging Stations", checked=True),
+    #                                 ]
+    #                             ) 
+    #                     ]
+    #                     ,id="er_input_map"),
+    #             style = {'width': '60%', 'display': 'inline-block'}
+    #         ),
+    #         html.Div(
+    #             dcc.Dropdown(options=[{'label':'None','value':'Kunj'}], value="", id="ev_sdinput_table"),
+    #             style = {'width': '10%', 'display': 'inline-block','margin-left':'30px','margin-bottom':'400px'}
+    #         ),
+    #         html.Div(
+    #             dcc.Dropdown(options=[], value="", id="er_ev_input_dropdown"),
+    #             style = {'width': '10%', 'display': 'inline-block','margin-left':'30px','margin-bottom':'400px'}
+    #         )
+    #     ]
+    # ),
     
     html.Br(),
     html.Hr(),
@@ -192,41 +283,162 @@ body = dbc.Container([
             'bold'},
          )
         ]),
-    html.Div(dbc.Spinner(children=[dbc.Button("Inputs for vehicles",id="er_generate_paths_button",color="primary")],size="sm", color="primary",id="spinner_2"))
+    html.Div(dbc.Spinner(children=[dbc.Button("Generate Paths for EVs",id="er_generate_paths_button",color="primary")],size="sm", color="primary",id="spinner_2"))
      ,html.Br(),
+    html.Div(id='ev_sd_input_validation'),
+    html.Br(),
     html.Hr(),
-     html.H1("Visualise Generated Paths", style={'text-align': 'center'}),
-     html.Div(
-         [
-            html.Div(
-                dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
-                            center=Search_Region,
-                            zoom=5,
-                            children=[
-                                dl.LayersControl(
-                                    [dl.TileLayer()] +
-                                        [
-                                        dl.Overlay(dl.LayerGroup(id="dl_er_output_circle"), name="Search Area", checked=True),
-                                        dl.Overlay(dl.LayerGroup(id="dl_er_output_all_nodes"), name="General Nodes", checked=False),
-                                        dl.Overlay(dl.LayerGroup(id="dl_er_output_path"), name="Path", checked=True),
-                                        ]
-                                    ) 
-                            ]
-                            ,id="er_output_map"),
-                    style = {'width': '50%', 'display': 'inline-block'}
-            ),
-            html.Div(
-                dcc.Dropdown(options=[], value="", id="ev_path_table"),
-                style = {'width': '22%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
-            ),
-            html.Div(
-                dcc.Dropdown(options=[], value="", id="ev_path_index_table"),
-                style = {'width': '22%', 'display': 'inline-block','margin-left':'50px','margin-bottom':'400px'}
-            ),
+    html.H1("Visualise Generated Paths", style={'text-align': 'center'}),
+    html.Hr(),
 
-        ]
+    #  html.Div(
+    #      [
+    #         html.Div(
+    #             dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
+    #                         center=Search_Region,
+    #                         zoom=5,
+    #                         children=[
+    #                             dl.LayersControl(
+    #                                 [dl.TileLayer()] +
+    #                                     [
+    #                                     dl.Overlay(dl.LayerGroup(id="dl_er_output_circle"), name="Search Area", checked=True),
+    #                                     dl.Overlay(dl.LayerGroup(id="dl_er_output_all_nodes"), name="General Nodes", checked=False),
+    #                                     dl.Overlay(dl.LayerGroup(id="dl_er_output_path"), name="Path", checked=True),
+    #                                     dl.Overlay(dl.LayerGroup(id="dl_er_output_path_nodes"), name="Path Nodes", checked=False),
+    #                                     ]
+    #                                 ) 
+    #                         ]
+    #                         ,id="er_output_map"),
+    #                 style = {'width': '60%', 'display': 'inline-block'}
+    #         ),
+    #         html.Div(
+    #             dcc.Dropdown(options=[], value="", id="ev_path_table"),
+    #             style = {'width': '10%', 'display': 'inline-block','margin-left':'30px','margin-bottom':'400px'}
+    #         ),
+    #         html.Div(
+    #             dcc.Dropdown(options=[], value="", id="ev_path_index_table"),
+    #             style = {'width': '10%', 'display': 'inline-block','margin-left':'30px','margin-bottom':'400px'}
+    #         ),
+    #         html.Div(
+    #             dbc.Spinner(children=[dbc.Button("Visualise Path",id="er_generate_path_button",color="primary")],size="sm", color="primary",id="spinner_1"),
+    #             style = {'width': '10%', 'display': 'inline-block','margin-left':'10px','margin-bottom':'600px'}
+    #         ),
+
+    #     ]
+    #  ),
+     html.Div(
+         dbc.Row(
+             [
+                dbc.Col(
+                    [
+                        dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
+                                    center=Search_Region,
+                                    zoom=5,
+                                    children=[
+                                        dl.LayersControl(
+                                            [dl.TileLayer()] +
+                                                [
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_output_circle"), name="Search Area", checked=True),
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_output_all_nodes"), name="General Nodes", checked=False),
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_output_cs_selected_nodes"), name="CS Nodes", checked=True),
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_output_path"), name="Path", checked=True),
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_output_path_nodes"), name="Path Nodes", checked=False),
+                                                ]
+                                            ) 
+                                    ]
+                                    ,id="er_output_map"),
+                        
+                    ],
+                    width = 6
+                    
+                ),
+                dbc.Col(
+                    [
+                        dcc.Dropdown(options=[], value="", id="ev_path_table"),
+                        
+                    ],
+                    width = 2
+                    
+                ),
+                dbc.Col(
+                    [
+                        dcc.Dropdown(options=[], value="", id="ev_path_index_table"),
+
+                    ],
+                    width = 2
+                ),
+                dbc.Col(
+                    [
+                        dbc.Spinner(children=[dbc.Button("Visualise Path",id="er_generate_selected_path_button",color="primary")],size="sm", color="primary",id="spinner_1"),
+                    ],
+                    width = 2
+                ),
+             ]
+
+         )
      ),
-    
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.H1("Possible Paths using CS", style={'text-align': 'center'}),
+    html.Hr(),
+    html.Br(),
+    html.Div([
+         dbc.Row([
+             html.Div(id='ev_cs_path_info'),
+             html.Br()
+         ]
+         ),
+         dbc.Row(
+             [
+                dbc.Col(
+                    [
+                        dl.Map(style={'width': '100%', 'height': '50vh', 'margin': "auto", "display": "block"},
+                                    center=Search_Region,
+                                    zoom=5,
+                                    children=[
+                                        dl.LayersControl(
+                                            [dl.TileLayer()] +
+                                                [
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_cs_output_circle"), name="Search Area", checked=True),
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_cs_output_all_nodes"), name="General Nodes", checked=False),
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_cs_output_cs_selected_nodes"), name="CS Nodes", checked=True),
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_cs_output_path"), name="Path", checked=True),
+                                                dl.Overlay(dl.LayerGroup(id="dl_er_cs_output_path_nodes"), name="Path Nodes", checked=False),
+                                                ]
+                                            ) 
+                                    ]
+                                    ,id="er_cs_output_map"),
+                        
+                    ],
+                    width = 6
+                    
+                ),
+                dbc.Col(
+                    [
+                        dcc.Dropdown(options=[], value="", id="ev_cs_path_table"),
+                        
+                    ],
+                    width = 2
+                    
+                ),
+                dbc.Col(
+                    [
+                        dcc.Dropdown(options=[], value="", id="ev_cs_path_index_table"),
+
+                    ],
+                    width = 2
+                ),
+                dbc.Col(
+                    [
+                        dbc.Spinner(children=[dbc.Button("Visualise Path",id="er_cs_generate_selected_path_button",color="primary")],size="sm", color="primary",id="spinner_1"),
+                    ],
+                    width = 2
+                ),
+             ]
+
+         )
+    ]),
 
 ])
 

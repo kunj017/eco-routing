@@ -11,7 +11,6 @@ const int MAX_NODES = 100009;
 const int max_paths = 10;
 int N, M,Q,cnt ,CS;
 vector<pair<int,int> > graph[MAX_NODES];
-// vector<pair<int,int> > rev_graph[MAX_NODES];
 vector<pair<int,vector<int> > > paths[MAX_NODES];
 
 

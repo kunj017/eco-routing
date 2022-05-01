@@ -1,3 +1,4 @@
+from tokenize import Double
 import dash
 from dash import dcc
 from dash import html
@@ -38,7 +39,13 @@ Oid = []
 input_ev_locations = []
 Xnode = []
 Ynode = []
-algo_input = []
+paths = []
+path_nodes = []
+optimal_paths = []
+optimal_path_nodes = []
+optimal_paths_info = []
+G1 = None
+algo_input = {}
 path_id = None
 @app.callback(
     [Output("er_autocomplete_list","children"),
@@ -152,6 +159,7 @@ def default_location():
      Output("dl_er_input_circle", "children"),
      Output(component_id='er_input_map', component_property='center'),
      Output(component_id='er_input_map', component_property='zoom'),
+     Output(component_id='cs_input_table', component_property='options'),
     ],
     inputs = [Input('er_all_nodes_button', 'n_clicks')],
     state = [
@@ -166,15 +174,15 @@ def hp_update_map(n_clicks, location, radius, number_of_cs):
         if config.num_of_tot_nodes != 0:
             return 'Total Number of Nodes: {}'.format(config.num_of_tot_nodes),config.positions,config.cs_positions,\
                     config.polygon,config.center, config.zoomLevel,config.positions,config.cs_positions,\
-                    config.polygon,config.center, config.zoomLevel
+                    config.polygon,config.center, config.zoomLevel, dash.no_update
 
         if n_clicks is None:
             fig, center, zoomLevel = default_location()    
             return '' ,dash.no_update,dash.no_update,dash.no_update,center, zoomLevel,dash.no_update,\
-                dash.no_update,dash.no_update,center, zoomLevel
+                dash.no_update,dash.no_update,center, zoomLevel, dash.no_update
 
 
-    global Xnode, Ynode
+    global Xnode, Ynode, G1
     fig, num_of_tot_nodes, G1, A, Xnode, Ynode, center, zoomLevel, latitude, longitude = find_all_nodes(location, radius)
     
 
@@ -203,18 +211,15 @@ def hp_update_map(n_clicks, location, radius, number_of_cs):
         riseOnHover=True,icon={'iconUrl':'https://icon-library.com/images/station-icon/station-icon-14.jpg','iconSize':[30,40]}) \
             for i in config.cs_nodes]
 
-    my_file = open('cs_input.txt', "w+")
-    my_file.write("%d \n" %int(config.num_of_cs))
-    for i in config.cs_nodes:
-        my_file.write("%d " %int(i))
-
-    my_file.write("\n")
+    dropdown_content = [[f"Cs Node{i}",f"Node{i}"] for i in config.cs_nodes]
+    dropdown = pd.DataFrame(dropdown_content,columns = ['label','value'])
+    config.cs_dropdown = dropdown
 
     # setting the global variables in config file
     config.num_of_tot_nodes, config.positions, config.polygon, config.center, config.zoomLevel = num_of_tot_nodes, positions, polygon,center, zoomLevel
     
     return 'Total Number of Nodes: {}'.format(num_of_tot_nodes),positions,config.cs_positions,\
-         polygon,center, zoomLevel, positions, config.cs_positions, polygon,center, zoomLevel
+         polygon,center, zoomLevel, positions, config.cs_positions, polygon,center, zoomLevel, config.cs_dropdown.to_dict('records')
 
 
 
@@ -237,6 +242,7 @@ def find_all_nodes(search_location, radius):
     # print(search_location)
     center = [lat_center,long_center]
     zoomLevel = get_eco_zoom_level(radius)
+    global G1
     num_of_tot_nodes, G1, A, Xnode, Ynode = get_all_nodes(lat_center,long_center,radius)
     
     # Preparing the map to display all the nodes got from Osmnx
@@ -276,6 +282,7 @@ def getTolerance(radius):
 def get_all_nodes(latitude,longitude,radius):
 
     location_point=(latitude,longitude)
+    global G1
     G1 = ox.graph_from_point(location_point, dist=radius, simplify=True, network_type='drive', clean_periphery=False)
     ox.save_graphml(G1, filepath='network1.graphml')
     nodes1, edges1 = ox.graph_to_gdfs(G1, nodes=True, edges=True)
@@ -325,28 +332,60 @@ def get_all_nodes(latitude,longitude,radius):
      Output(component_id='er_num_all_ev', component_property='children'),
      Output(component_id='er_ev_input_dropdown', component_property='options'),
      Output(component_id='ev_sdinput_table', component_property='options'),
+     Output(component_id='dl_er_input_cs_selected_nodes', component_property='children'),
+     Output(component_id='dl_er_output_cs_selected_nodes', component_property='children'),
+     Output(component_id='dl_er_cs_output_cs_selected_nodes', component_property='children'),
     ],
     inputs = [
                 Input('er_vehicles_button', 'n_clicks'),
             ],
     state = [
            State(component_id='er_no_of_vehicles_input', component_property='value'),
+           State(component_id='cs_input_table', component_property='value'),
+           State(component_id='er_inital_charge', component_property='value'),
+           State(component_id='er_ev_capacity', component_property='value'),
            ]
 )
-def er_input_ev(nclicks,number_of_ev):
+def er_input_ev(nclicks,number_of_ev,cs_input,initial_charge, ev_capacity):
     if nclicks is None:
-        if config.ev_dropdown is not None:
-            return f"Number of ev : {config.num_of_ev}",\
-                    config.ev_dropdown.to_dict('records'),\
-                           config.table_of_ev_inputs.to_dict('records')
-        return "Enter number of EVs",[], []
+        # if config.ev_dropdown is not None:
+        #     return f"Number of ev : {config.num_of_ev}",\
+        #             config.ev_dropdown.to_dict('records'),\
+        #                    config.table_of_ev_inputs.to_dict('records'), dash.no_update, dash.no_update
+        return "Enter number of EVs",[], [], [], [], []
     
+    print(f"CS Input: {cs_input}")
+
+    config.cs_selected_positions = config.cs_positions 
+    config.cs_selected_nodes = config.cs_nodes
+    if len(cs_input) > 0:
+        cs_nodes = [int(i[4:]) for i in cs_input]
+        config.cs_selected_nodes = cs_nodes
+        print(f"Selected cs_nodes: {cs_nodes}")
+        config.cs_selected_positions = [
+        dl.Marker(position=[Ynode[i],Xnode[i]],children=dl.Tooltip(i, direction='top', permanent=True),\
+        riseOnHover=True,icon={'iconUrl':'https://icon-library.com/images/station-icon/station-icon-14.jpg','iconSize':[30,40]}) \
+            for i in cs_nodes]
+    
+    my_file = open('cs_input.txt', "w+")
+    my_file.write("%d \n" %int(len(config.cs_selected_nodes)))
+    for i in config.cs_selected_nodes:
+        my_file.write("%d " %int(i))
+
+    my_file.write("\n")
+    my_file.close()
+
+    my_file = open('ev_info.txt', "w+")
+    my_file.write("%d " %int(initial_charge))
+    my_file.write("%d \n" %int(ev_capacity))
+    my_file.close()
+
     global input_ev_locations, Xnode, algo_input
     input_ev_locations = []
-    algo_input = []
-    config.output_positions = []
+    algo_input = {}
+    config.output_positions = {}
     config.ev_sdinput = pd.DataFrame()
-    
+    config.num_of_ev = number_of_ev
     dropdown_content = [[f"Node{i}",f"Node{i}","Not Selected"] for i in range(len(Xnode))]
     dropdown = pd.DataFrame(dropdown_content,columns = ['label','value','title'])
     config.ev_dropdown = dropdown
@@ -357,42 +396,116 @@ def er_input_ev(nclicks,number_of_ev):
     config.table_of_ev_inputs = table
     return f"Number of ev: {number_of_ev}", \
             config.ev_dropdown.to_dict('records'),\
-        config.table_of_ev_inputs.to_dict('records')
+        config.table_of_ev_inputs.to_dict('records'), config.cs_selected_positions, config.cs_selected_positions, config.cs_selected_positions
         
+
+
+# @app.callback(
+#     [
+#      Output(component_id='dl_er_input_selected_nodes', component_property='children'),
+#      Output(component_id='ev_sdoutput_table', component_property='data'),
+#     ],
+#     inputs = [
+#                 Input('er_ev_input_dropdown', 'value'),  
+#                 Input('er_sd_input_button', 'n_clicks'),  
+#             ],
+#     state = [
+#         State(component_id='ev_sdinput_table', component_property='value')
+#     ]
+    
+# )
+# def er_update_inputs(node,nclicks,vehicle):
+#     ctx=dash.callback_context
+#     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+#     if not ctx.triggered or node==None or vehicle ==None:
+#         return dash.no_update, dash.no_update
+    
+#     global algo_input
+
+#     if trigger_id == "er_ev_input_dropdown":
+
+    
+#         # output_data = {"vehicle_id": vechicle,"node_id": node}
+#         # config.ev_sdinput = config.ev_sdinput.append(output_data,ignore_index=True)
+        
+#         vechicle_id = int(vehicle[3:])
+#         node_id = int(node[4:])
+#         # algo_input.append([vechicle_id,node_id])
+#         algo_input[vehicle] = node
+        
+#         config.output_positions[vehicle] = dl.Marker(position=[Ynode[node_id],Xnode[node_id]],children=dl.Tooltip(node_id, direction='top', permanent=True),
+#             riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]})
+        
+#         # config.output_positions.append(
+#         #     dl.Marker(position=[Ynode[node_id],Xnode[node_id]],children=dl.Tooltip(node_id, direction='top', permanent=True),
+#         #     riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]}))
+
+#         return list(config.output_positions.values()), config.ev_sdinput.to_dict('records')
+#     else:
+
+#         config.ev_sdinput = pd.DataFrame(list(algo_input.items()),columns = ['vehicle_id','node_id']).sort_values(by = 'vehicle_id')
+#         return list(config.output_positions.values()), config.ev_sdinput.to_dict('records')
 
 
 @app.callback(
     [
      Output(component_id='dl_er_input_selected_nodes', component_property='children'),
      Output(component_id='ev_sdoutput_table', component_property='data'),
+     Output(component_id='er_ev_input_dropdown', component_property='value'),
     ],
     inputs = [
                 Input('er_ev_input_dropdown', 'value'),  
+                Input('er_sd_input_button', 'n_clicks'),  
+                Input('er_input_map', 'click_lat_lng'),  
             ],
     state = [
         State(component_id='ev_sdinput_table', component_property='value')
     ]
     
 )
-def er_update_inputs(node,vechicle):
+def er_update_inputs(node,nclicks,cord_vector,vehicle):
     ctx=dash.callback_context
-    if not ctx.triggered or node==None or vechicle ==None:
-        return dash.no_update, dash.no_update
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if not ctx.triggered or node==None or vehicle ==None:
+        return dash.no_update, dash.no_update, dash.no_update
     
-    output_data = {"vehicle_id": vechicle,"node_id": node}
-    config.ev_sdinput = config.ev_sdinput.append(output_data,ignore_index=True)
     global algo_input
-    vechicle_id = int(vechicle[3:])
-    node_id = int(node[4:])
-    algo_input.append([vechicle_id,node_id])
-    config.output_positions.append(
-        dl.Marker(position=[Ynode[node_id],Xnode[node_id]],children=dl.Tooltip(node_id, direction='top', permanent=True),
-        riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]}))
 
-    return config.output_positions, config.ev_sdinput.to_dict('records')
+    if trigger_id == "er_ev_input_dropdown":
+        
+        vechicle_id = int(vehicle[3:])
+        node_id = int(node[4:])
+        algo_input[vehicle] = node
+        
+        config.output_positions[vehicle] = dl.Marker(position=[Ynode[node_id],Xnode[node_id]],children=dl.Tooltip(node_id, direction='top', permanent=True),
+            riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]})
+        
+        return list(config.output_positions.values()), dash.no_update , dash.no_update
+
+    elif trigger_id == "er_input_map":
+        x_cord = float(cord_vector[0])
+        y_cord = float(cord_vector[1])
+        cord_node = ox.distance.nearest_nodes(G1, y_cord, x_cord)
+        for i in range(len(Oid)):
+            if Oid[i] == cord_node:
+                cord_node = i
+                break
+
+        print(cord_node)
+        algo_input[vehicle] = f"Node{cord_node}"
+
+        config.output_positions[vehicle] = dl.Marker(position=[Ynode[cord_node],Xnode[cord_node]],children=dl.Tooltip(cord_node, direction='top', permanent=True),
+            riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]})
+        
+        return list(config.output_positions.values()), dash.no_update, f"Node{cord_node}" 
+    else:
+
+        config.ev_sdinput = pd.DataFrame(list(algo_input.items()),columns = ['vehicle_id','node_id']).sort_values(by = 'vehicle_id')
+        return list(config.output_positions.values()), config.ev_sdinput.to_dict('records'), dash.no_update
+
     
-
-
 
 @app.callback(
     [
@@ -401,45 +514,185 @@ def er_update_inputs(node,vechicle):
      Output(component_id='er_output_map', component_property='center'),
      Output(component_id='er_output_map', component_property='zoom'),
      Output(component_id='dl_er_output_path', component_property='children'),
+     Output(component_id='dl_er_output_path_nodes', component_property='children'),
      Output(component_id='ev_path_table', component_property='options'),
      Output(component_id='ev_path_index_table', component_property='options'),
+     Output(component_id='ev_sd_input_validation', component_property='children'),
     ],
     inputs = [
                 Input('er_generate_paths_button', 'n_clicks'), 
                 Input('ev_path_table', 'value'),  
-                Input('ev_path_index_table', 'value'),  
+                Input('er_generate_selected_path_button', 'n_clicks'),  
             ],
+    state = [
+                State('ev_path_index_table', 'value'),  
+    ]
     
 )
-def generate_paths(nclicks, path_id_input, path_index_input):
-    if nclicks is None:
-        return config.positions, config.polygon, config.center, config.zoomLevel, dash.no_update, [], []
+def generate_paths(nclicks, path_id_input, ncliks2, path_index_input):
+    # if nclicks is None:
+    #     return config.positions, config.polygon, config.center, config.zoomLevel, dash.no_update, dash.no_update, [], []
     
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     if not ctx.triggered:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
 
     if trigger_id == "er_generate_paths_button":
-
+        # print(f"er_generate_paths_button triggered : {algo_input}, {config.num_of_ev}")
+        if len(algo_input) < 2*config.num_of_ev:
+            # print("if condition entered")
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, "Please Enter input for all EVs"
+        
+        # print(f"hey {len(algo_input)}, {config.num_of_ev}")
         my_file = open('queries.txt', "w+")
-        my_file.write("%d \n" %(len(algo_input)/2))
+        my_file.write("%d \n" %(config.num_of_ev))
 
-        for i in range(0,len(algo_input),2):
-            my_file.write("%d " %algo_input[i][1])
-            my_file.write("%d \n" %algo_input[i+1][1])
+        for i in range(1,config.num_of_ev+1):
+            my_file.write("%d " %int(algo_input[f"SRC{i}"][4:]))
+            my_file.write("%d \n" %int(algo_input[f"DST{i}"][4:]))
         
         my_file.close()
         # subproces = subprocess.check_call("g++ dijkstra.cpp -o dij")
         subproces = subprocess.check_call("./algo")
         
-        my_file = open("output_graph.txt","r")
+        # my_file = open("output_graph.txt","r")
 
-        global paths
+        global paths, path_nodes
         paths = []
+        path_nodes = []
 
         my_file = open("output_graph.txt","r")
+
+        Q = int(my_file.readline())
+        color_index = 0
+        color_list = ["red","orange","yellow","green","pink"]
+
+        # print(f"We got Q : {Q}")
+
+        for i in range(Q):
+            number_of_paths = int(my_file.readline())
+            temp = []
+            path_nodes_temp = []
+            for id in range(number_of_paths):
+                n,energy = list(map(int,my_file.readline().split()))
+                arr = list(map(int,my_file.readline().split()))
+                # print(arr)
+                path = []
+                path_node = []
+                path.append(
+                    dl.Marker(position=[Ynode[arr[0]],Xnode[arr[0]]],\
+                                children=dl.Tooltip(f"SRC: Node{arr[0]}", direction='top', permanent=True),
+                                riseOnHover=True, \
+                                icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=green','iconSize':[30,40]})
+                )
+                if len(arr)>1:
+                    path.append(
+                        dl.Marker(position=[Ynode[arr[-1]],Xnode[arr[-1]]],\
+                                    children=dl.Tooltip(f"DST: Node{arr[-1]}", direction='top', permanent=True),
+                                    riseOnHover=True, \
+                                    icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=green','iconSize':[30,40]})
+                    )
+                for node_id in arr:
+                    path_node.append(
+                                dl.Marker(position=[Ynode[node_id],Xnode[node_id]],\
+                                children=dl.Tooltip(node_id, direction='top', permanent=True),
+                                riseOnHover=True, \
+                                icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=green','iconSize':[30,40]}))
+
+                for j in range(len(arr)-1):
+                    corners = [[Ynode[arr[j]],Xnode[arr[j]]], [Ynode[arr[j+1]],Xnode[arr[j+1]]]]
+                    polyline = dl.Polyline(color=color_list[color_index],weight=4,positions=corners)
+                    path.append(polyline)
+
+                color_index = (color_index+1)%len(color_list)
+                temp.append(path)
+                path_nodes_temp.append(path_node)
+
+            paths.append(temp)
+            path_nodes.append(path_nodes_temp)
+
+        my_file.close()
+        
+        config.path_inputs = pd.DataFrame(columns = ['label','value'])
+        for i in range(Q):
+            dropdown_data = {'label':f"Path{i}", "value":f"Path{i}"}
+            config.path_inputs = config.path_inputs.append(dropdown_data,ignore_index=True)
+        
+        return config.positions, config.polygon, config.center, config.zoomLevel, [],[], config.path_inputs.to_dict('records'), [], ""
+
+    elif trigger_id == "ev_path_table":
+        global path_id
+        path_id = int(path_id_input[4:])
+        options = []
+        for i in range(len(paths[path_id])):
+            options.append({'label':f"Path_option{i}", "value":f"Path_option{i}"})
+        return config.positions, config.polygon, config.center, config.zoomLevel, [],[], config.path_inputs.to_dict('records'), options, ""
+
+    else:
+        path_index = int(path_index_input[11:])
+        return config.positions, config.polygon, config.center, config.zoomLevel, paths[path_id][path_index],path_nodes[path_id][path_index], dash.no_update, dash.no_update, ""
+        
+
+
+@app.callback(
+    [
+     Output(component_id='dl_er_cs_output_all_nodes', component_property='children'),
+     Output("dl_er_cs_output_circle", "children"),
+     Output(component_id='er_cs_output_map', component_property='center'),
+     Output(component_id='er_cs_output_map', component_property='zoom'),
+     Output(component_id='dl_er_cs_output_path', component_property='children'),
+     Output(component_id='dl_er_cs_output_path_nodes', component_property='children'),
+     Output(component_id='ev_cs_path_table', component_property='options'),
+     Output(component_id='ev_cs_path_index_table', component_property='options'),
+     Output(component_id='ev_cs_path_info', component_property='children'),
+    ],
+    inputs = [
+                Input('er_generate_paths_button', 'n_clicks'), 
+                Input('ev_cs_path_table', 'value'),  
+                Input('er_cs_generate_selected_path_button', 'n_clicks'),  
+            ],
+    state = [
+                State('ev_cs_path_index_table', 'value'),  
+    ]
+    
+)
+def generate_possible_paths(nclicks, path_id_input, ncliks2, path_index_input):
+    # if nclicks is None:
+    #     return config.positions, config.polygon, config.center, config.zoomLevel, dash.no_update, dash.no_update, [], []
+    
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+
+    if trigger_id == "er_generate_paths_button":
+        # print(f"er_generate_paths_button triggered : {algo_input}, {config.num_of_ev}")
+        if len(algo_input) < 2*config.num_of_ev:
+            print("if condition entered")
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        
+        print(f"hey {len(algo_input)}, {config.num_of_ev}")
+        my_file = open('queries.txt', "w+")
+        my_file.write("%d \n" %(config.num_of_ev))
+
+        for i in range(1,config.num_of_ev+1):
+            my_file.write("%d " %int(algo_input[f"SRC{i}"][4:]))
+            my_file.write("%d \n" %int(algo_input[f"DST{i}"][4:]))
+        
+        my_file.close()
+        # subproces = subprocess.check_call("g++ dijkstra.cpp -o dij")
+        subproces = subprocess.check_call("./cs_algo")
+
+        global optimal_paths, optimal_path_nodes, optimal_paths_info
+        optimal_paths = []
+        optimal_path_nodes = []
+
+        my_file = open("cs_output_graph.txt","r")
 
         Q = int(my_file.readline())
         color_index = 0
@@ -450,11 +703,49 @@ def generate_paths(nclicks, path_id_input, path_index_input):
         for i in range(Q):
             number_of_paths = int(my_file.readline())
             temp = []
+            path_nodes_temp = []
+            paths_info = []
             for id in range(number_of_paths):
-                n,energy = list(map(int,my_file.readline().split()))
+                n,time,energy = list(map(float,my_file.readline().split()))
                 arr = list(map(int,my_file.readline().split()))
                 print(arr)
                 path = []
+                path_node = []
+                
+                if len(arr)==0:
+                    temp.append(path)
+                    path_nodes_temp.append(path_node)
+                    paths_info.append(f"Path Not Possible for Given ev configuration !!!")
+                    continue
+                
+                paths_info.append(f"Total Nodes: {n}, Total Time take : {time}, Total Energy Consumed : {energy}")
+                path.append(
+                    dl.Marker(position=[Ynode[arr[0]],Xnode[arr[0]]],\
+                                children=dl.Tooltip(f"SRC: Node{arr[0]}", direction='top', permanent=True),
+                                riseOnHover=True, \
+                                icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=green','iconSize':[30,40]})
+                )
+                if len(arr)>1:
+                    path.append(
+                        dl.Marker(position=[Ynode[arr[-1]],Xnode[arr[-1]]],\
+                                    children=dl.Tooltip(f"DST: Node{arr[-1]}", direction='top', permanent=True),
+                                    riseOnHover=True, \
+                                    icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=green','iconSize':[30,40]})
+                    )
+                for node_id in arr:
+                    if node_id in config.cs_selected_nodes:
+                        path_node.append(
+                                    dl.Marker(position=[Ynode[node_id],Xnode[node_id]],\
+                                    children=dl.Tooltip(node_id, direction='top', permanent=True),
+                                    riseOnHover=True, \
+                                    icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=black','iconSize':[30,40]}))
+                    else:
+                        path_node.append(
+                                    dl.Marker(position=[Ynode[node_id],Xnode[node_id]],\
+                                    children=dl.Tooltip(node_id, direction='top', permanent=True),
+                                    riseOnHover=True, \
+                                    icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=green','iconSize':[30,40]}))
+
                 for j in range(len(arr)-1):
                     corners = [[Ynode[arr[j]],Xnode[arr[j]]], [Ynode[arr[j+1]],Xnode[arr[j+1]]]]
                     polyline = dl.Polyline(color=color_list[color_index],weight=4,positions=corners)
@@ -462,30 +753,32 @@ def generate_paths(nclicks, path_id_input, path_index_input):
 
                 color_index = (color_index+1)%len(color_list)
                 temp.append(path)
+                path_nodes_temp.append(path_node)
 
-            paths.append(temp)
+            optimal_paths.append(temp)
+            optimal_path_nodes.append(path_nodes_temp)
+            optimal_paths_info.append(paths_info)
         
         config.path_inputs = pd.DataFrame(columns = ['label','value'])
+        my_file.close()
         for i in range(Q):
             dropdown_data = {'label':f"Path{i}", "value":f"Path{i}"}
             config.path_inputs = config.path_inputs.append(dropdown_data,ignore_index=True)
         
-        return config.positions, config.polygon, config.center, config.zoomLevel, [], config.path_inputs.to_dict('records'), []
+        return config.positions, config.polygon, config.center, config.zoomLevel, [],[], config.path_inputs.to_dict('records'), [], ""
 
-    elif trigger_id == "ev_path_table":
+    elif trigger_id == "ev_cs_path_table":
         global path_id
         path_id = int(path_id_input[4:])
         options = []
-        for i in range(len(paths[path_id])):
+        for i in range(len(optimal_paths[path_id])):
             options.append({'label':f"Path_option{i}", "value":f"Path_option{i}"})
-        return config.positions, config.polygon, config.center, config.zoomLevel,[], config.path_inputs.to_dict('records'), options
+        return config.positions, config.polygon, config.center, config.zoomLevel, [],[], config.path_inputs.to_dict('records'), options, dash.no_update
 
     else:
         path_index = int(path_index_input[11:])
-        return config.positions, config.polygon, config.center, config.zoomLevel,paths[path_id][path_index], dash.no_update, dash.no_update
+        return config.positions, config.polygon, config.center, config.zoomLevel, optimal_paths[path_id][path_index],optimal_path_nodes[path_id][path_index], dash.no_update, dash.no_update, optimal_paths_info[path_id][path_index]
         
-
-
 
 
 # Class helping to create the dynamic values of radioButtons
