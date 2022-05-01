@@ -1,3 +1,6 @@
+# Controls shifting of layouts
+
+
 import dash
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL, MATCH
@@ -11,7 +14,6 @@ from csp_layout import csp_layout
 from eco_routing_actions import *
 from documentation import Documentation
 from server import app
-
 
 
 @app.callback(Output('page-content', 'children'),

@@ -1,3 +1,5 @@
+# contains all the configurable variables to maintain state of user
+
 import pandas as pd
 
 num_of_tot_nodes = 0
@@ -12,7 +14,7 @@ ev_options = None
 ev_dropdown = pd.DataFrame(columns = ['label','value','title'])
 ev_sdinput = pd.DataFrame(columns = ['vehicle_id','node_id'])
 positions = 0
-output_positions = []
+output_positions = {}
 polygon = []
 center = None
 zoomLevel = 0

@@ -1,3 +1,6 @@
+# Main file for eco routing actions
+# Kunj Taneja 1801CS30
+
 from tokenize import Double
 import dash
 from dash import dcc
@@ -32,6 +35,7 @@ from server import app
 rEarth = 6371.01 # Earth's average radius in km
 epsilon = 0.000001 # threshold for floating-point equality
 
+# all global variables and access tokens
 mapbox_access_token = "pk.eyJ1IjoiaGFyc2hqaW5kYWwiLCJhIjoiY2tleW8wbnJlMGM4czJ4b2M0ZDNjeGN4ZyJ9.XXPg4AsUx0GUygvK8cxI6g"
 geolocator = Nominatim(user_agent="Charging Station App")
 location = geolocator.geocode("India")
@@ -47,6 +51,9 @@ optimal_paths_info = []
 G1 = None
 algo_input = {}
 path_id = None
+
+
+# deals with auto complete input location
 @app.callback(
     [Output("er_autocomplete_list","children"),
      Output("er_location_input","value")],
@@ -232,6 +239,7 @@ def get_eco_zoom_level(radius):
     return level
 
 
+# finds nodes based on search location and radius
 def find_all_nodes(search_location, radius):
     
     parsed_loc = urllib.parse.quote(search_location)
@@ -326,7 +334,6 @@ def get_all_nodes(latitude,longitude,radius):
 
 
 # callback related to number of EV input and generating content for drowpdown and updating the cirle on the input_map
-
 @app.callback(
     [
      Output(component_id='er_num_all_ev', component_property='children'),
@@ -399,55 +406,7 @@ def er_input_ev(nclicks,number_of_ev,cs_input,initial_charge, ev_capacity):
         config.table_of_ev_inputs.to_dict('records'), config.cs_selected_positions, config.cs_selected_positions, config.cs_selected_positions
         
 
-
-# @app.callback(
-#     [
-#      Output(component_id='dl_er_input_selected_nodes', component_property='children'),
-#      Output(component_id='ev_sdoutput_table', component_property='data'),
-#     ],
-#     inputs = [
-#                 Input('er_ev_input_dropdown', 'value'),  
-#                 Input('er_sd_input_button', 'n_clicks'),  
-#             ],
-#     state = [
-#         State(component_id='ev_sdinput_table', component_property='value')
-#     ]
-    
-# )
-# def er_update_inputs(node,nclicks,vehicle):
-#     ctx=dash.callback_context
-#     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-#     if not ctx.triggered or node==None or vehicle ==None:
-#         return dash.no_update, dash.no_update
-    
-#     global algo_input
-
-#     if trigger_id == "er_ev_input_dropdown":
-
-    
-#         # output_data = {"vehicle_id": vechicle,"node_id": node}
-#         # config.ev_sdinput = config.ev_sdinput.append(output_data,ignore_index=True)
-        
-#         vechicle_id = int(vehicle[3:])
-#         node_id = int(node[4:])
-#         # algo_input.append([vechicle_id,node_id])
-#         algo_input[vehicle] = node
-        
-#         config.output_positions[vehicle] = dl.Marker(position=[Ynode[node_id],Xnode[node_id]],children=dl.Tooltip(node_id, direction='top', permanent=True),
-#             riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]})
-        
-#         # config.output_positions.append(
-#         #     dl.Marker(position=[Ynode[node_id],Xnode[node_id]],children=dl.Tooltip(node_id, direction='top', permanent=True),
-#         #     riseOnHover=True, icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]}))
-
-#         return list(config.output_positions.values()), config.ev_sdinput.to_dict('records')
-#     else:
-
-#         config.ev_sdinput = pd.DataFrame(list(algo_input.items()),columns = ['vehicle_id','node_id']).sort_values(by = 'vehicle_id')
-#         return list(config.output_positions.values()), config.ev_sdinput.to_dict('records')
-
-
+# Taking inputs of source and destination coordinates based on dropdown or input using map clicks
 @app.callback(
     [
      Output(component_id='dl_er_input_selected_nodes', component_property='children'),
@@ -506,7 +465,7 @@ def er_update_inputs(node,nclicks,cord_vector,vehicle):
         return list(config.output_positions.values()), config.ev_sdinput.to_dict('records'), dash.no_update
 
     
-
+# Callback leading to generating all paths and which path to show for the simple output map
 @app.callback(
     [
      Output(component_id='dl_er_output_all_nodes', component_property='children'),
@@ -555,10 +514,9 @@ def generate_paths(nclicks, path_id_input, ncliks2, path_index_input):
             my_file.write("%d \n" %int(algo_input[f"DST{i}"][4:]))
         
         my_file.close()
-        # subproces = subprocess.check_call("g++ dijkstra.cpp -o dij")
-        subproces = subprocess.check_call("./algo")
-        
-        # my_file = open("output_graph.txt","r")
+
+        subproces = subprocess.check_call("./cs_algo")
+        # subproces = subprocess.check_call("./algo")
 
         global paths, path_nodes
         paths = []
@@ -637,6 +595,7 @@ def generate_paths(nclicks, path_id_input, ncliks2, path_index_input):
         
 
 
+# Callback leading to generating all paths and which path to show for the cs output map based on availability of paths
 @app.callback(
     [
      Output(component_id='dl_er_cs_output_all_nodes', component_property='children'),
@@ -691,6 +650,7 @@ def generate_possible_paths(nclicks, path_id_input, ncliks2, path_index_input):
         global optimal_paths, optimal_path_nodes, optimal_paths_info
         optimal_paths = []
         optimal_path_nodes = []
+        optimal_paths_info = []
 
         my_file = open("cs_output_graph.txt","r")
 
@@ -712,10 +672,14 @@ def generate_possible_paths(nclicks, path_id_input, ncliks2, path_index_input):
                 path = []
                 path_node = []
                 
-                if len(arr)==0:
+                if n==0:
                     temp.append(path)
                     path_nodes_temp.append(path_node)
-                    paths_info.append(f"Path Not Possible for Given ev configuration !!!")
+                    
+                    if(arr[0]==0):
+                        paths_info.append(f"Could not reach any charging station !!! \n You need to increase initial charge")
+                    else:
+                        paths_info.append(f"Could not reach destination !!! \n You need to increase vehicle capacity")
                     continue
                 
                 paths_info.append(f"Total Nodes: {n}, Total Time take : {time}, Total Energy Consumed : {energy}")

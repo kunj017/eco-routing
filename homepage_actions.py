@@ -1,3 +1,5 @@
+# manages actions for homepage
+
 import dash
 from dash import dcc
 from dash import html
@@ -204,6 +206,7 @@ def get_eco_zoom_level(radius):
     return level
 
 
+# finds all nodes based on search location and radius
 def find_all_nodes(search_location, radius):
     
     parsed_loc = urllib.parse.quote(search_location)

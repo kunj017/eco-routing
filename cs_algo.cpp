@@ -1,8 +1,11 @@
+// main cs algo which uses cs insertion algorithm in order to introduce charging stations in best paths generated using algo
+
 #include<bits/stdc++.h>
 #define inf 10000000
 
 using namespace std; 
 
+// file path dependencies
 string graph_input_file = "input_graph.txt";
 string query_input_file = "queries.txt";
 string paths_output_file = "output_graph.txt";
@@ -10,21 +13,31 @@ string cs_paths_output_file = "cs_output_graph.txt";
 string cs_input_file = "cs_input.txt";
 string ev_info_file = "ev_info.txt";
 
+// max nodes, edges, paths, number of cs
 const int MAX_NODES = 100009;
 const int max_paths = 10;
 const int MAX_CS = 10;
 int N, M, Q, cnt, CS, ev_initial_charge, ev_capacity;
-vector<pair<int,int> > graph[MAX_NODES];
-vector<pair<int,vector<int> > > paths[MAX_NODES];
+
+vector<pair<int,int> > graph[MAX_NODES];  // adjacency list for graph
+vector<pair<int,vector<int> > > paths[MAX_NODES]; // stores best paths for queries
 vector<pair<vector<int>,pair<double,double> > > final_paths[MAX_NODES];
-map<int, pair<int,vector<int> > > cs_paths[MAX_NODES];
-map<pair<int,int>, int> edges;
-set<int> charging_stations;
+vector<int> fail_reasons[MAX_NODES];
+map<int, pair<int,vector<int> > > cs_paths[MAX_NODES];  // best cs paths for queries
+
+map<pair<int,int>, int> edges;  // map of all edges
+set<int> charging_stations; // set of all charging stations
+
 // assuming 1 unit of travel burns lamda energy where Capacity is given
 const double lambda_energy_spent = 0.1;
+// assuming one unit charging takes charging_unit_time 
 const double charging_unit_time = 0.1;
+// assuming one unit of time travels ev_speed units distance
 const double ev_speed = 1.0;
 
+int fail_condition; // 0 if init charge is less 1 if capacity is less
+
+// insert cs algo based on max_iterations parameter
 pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &path){
     vector<int> processed(path.size(),0);
     int max_iterations = 20;
@@ -40,13 +53,6 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
         int el_node = element.second.second.first;
         int el_parent = element.second.second.second;
 
-        // cout<<el_node << " " << el_parent << " " << el_time << " " << el_energy << endl;
-
-        // cout<<"enegy taken to reach any charging station: "<<endl;
-        // for(auto cs:charging_stations){
-        //     cout<<lambda_energy_spent*cs_paths[path[el_node]][cs].first<<endl;
-        // }
-
         if(el_node == path.size()-1){
             ans = element;
             break;
@@ -55,9 +61,6 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
         if(processed[el_node]>max_iterations)continue;
         processed[el_node]++;
 
-        
-
-        
         double energy_taken = lambda_energy_spent*edges[{path[el_node],path[el_node+1]}];
         double time_taken = edges[{path[el_node],path[el_node+1]}]/ev_speed;
         double total_time = time_taken + el_time;
@@ -66,13 +69,14 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
             parent[{total_time,{total_energy,{el_node+1,-1}}}] = element;
             st.insert({total_time,{total_energy,{el_node+1,-1}}});
         }
-        
+
         for(auto cs:charging_stations){
             time_taken = 0;
             energy_taken = lambda_energy_spent*cs_paths[path[el_node]][cs].first;
             if(energy_taken>el_energy){
                 continue;
             }
+            fail_condition = 1;
             time_taken = cs_paths[path[el_node]][cs].first/ev_speed;
             time_taken += cs_paths[path[el_node+1]][cs].first/ev_speed;
             energy_taken = lambda_energy_spent*cs_paths[path[el_node+1]][cs].first;
@@ -84,6 +88,8 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
             }
         }
     }
+
+    // extracting paths
     vector<int> output_path;
     double total_energy_taken = 0;
     double total_time_taken = ans.first;
@@ -116,7 +122,8 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
 
 }
 
-
+// beam search algorithm to maintain best paths 
+// takes a distance vector based on dijsktra algorithm and finds max best paths
 vector<pair<int,vector<int> > > beam_search(int src,int dst, vector<int> &distance){
     set<pair<int,pair<int,vector<int> > > > st;
     vector<int> temp;
@@ -142,12 +149,15 @@ vector<pair<int,vector<int> > > beam_search(int src,int dst, vector<int> &distan
             path.pop_back();
         }
         while(st.size()>max_paths){
-            st.erase(st.end());
+            auto it = st.end();
+            it--;
+            st.erase(it);
         }
     }
     return ans;
 }
 
+// dijkstra algorithm to generate distance vector
 vector<pair<int,vector<int> > > dijkstra(int src, int dst){
     vector<int> distance(N+1,inf);
     vector<int> parent(N+1,-1);
@@ -176,6 +186,8 @@ vector<pair<int,vector<int> > > dijkstra(int src, int dst){
 }
 int main(){
     cnt = 0;
+
+    // initialising file pointers
     fstream graph_reader, query_reader, query_printer, cs_query_printer, cs_reader, ev_info_reader;
     graph_reader.open(graph_input_file);
     query_reader.open(query_input_file);
@@ -191,6 +203,7 @@ int main(){
 
     cout<<N<<" "<<M<<" "<<Q<<" "<<CS<<endl;
 
+    // taking graph input
     for(int i=0;i<M;i++){
         int x,y,z;
         graph_reader >> x >> y >> z;
@@ -210,16 +223,19 @@ int main(){
         }
     }
 
+    //  taking cs input
     for(int i=0;i<CS;i++){
         int cs;
         cs_reader >> cs;
         charging_stations.insert(cs);
+        //  finding best path of each node from each cs using dijkstra
         for(int node = 0;node < N; node++){
             vector<pair<int,vector<int> > > temp = dijkstra(cs, node); 
             cs_paths[node][cs] = temp[0];
         }
     }
 
+    // taking query input
     for(int i=0;i<Q;i++){
         int src, dst;
         query_reader >> src >> dst;
@@ -227,27 +243,21 @@ int main(){
         
     }
 
+
+    // running cs insertion for each best path
     for(int i=0;i<Q;i++){
         vector<pair<vector<int>,pair<double,double> > > temp;
+        vector<int> temp1;
         for(auto el:paths[i]){
-            cout<<"path: "<<endl;
-            for(auto nodes:el.second){
-                cout<<nodes<<" ";
-            }
-            cout<<endl;
-
+            fail_condition = 0;
             temp.push_back(insert_charging_stations(el.second));
-            
-            cout<<"changed path: "<<endl;
-            for(auto nodes:temp.back().first){
-                cout<<nodes<<" ";
-            }
-            cout<<endl;
+            temp1.push_back(fail_condition);
         }
         final_paths[i] = temp;
+        fail_reasons[i] = temp1;
     }
 
-
+    // printing best shortest paths results
     query_printer << Q << endl;
 
     for(int i=0;i<Q;i++){
@@ -264,12 +274,14 @@ int main(){
         
     }
 
+    // printing results based on cs
     cs_query_printer << Q << endl;
 
     for(int i=0;i<Q;i++){
         cs_query_printer << final_paths[i].size() << endl; 
         for(auto el:final_paths[i]){
             cs_query_printer << el.first.size() << " " << el.second.first << " " << el.second.second << endl;
+            if(el.first.empty())cs_query_printer << fail_reasons[i][0];
             for(auto nodes:el.first){
                 cs_query_printer << nodes << " ";
             }
@@ -277,8 +289,7 @@ int main(){
         }
     }
 
-    
-
+    // closing file pointers.
     graph_reader.close();
     query_reader.close();
     query_printer.close();

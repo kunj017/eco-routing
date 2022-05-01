@@ -1,3 +1,5 @@
+# homepage layout
+
 import dash
 from dash import dcc
 from dash import html
@@ -44,6 +46,7 @@ available_indicators = [
 ]
 
 
+# location input
 hp_location_input_form = dbc.FormGroup(
     [
         dbc.Label("Search Area", html_for="location", width=2),
@@ -59,6 +62,7 @@ hp_location_input_form = dbc.FormGroup(
 )
 
 
+# autocomplete list
 autocomplete_list_ecorouting = dbc.Row(
     [
          dbc.Col(width=2),
@@ -73,6 +77,8 @@ autocomplete_list_ecorouting = dbc.Row(
     ]
 )
 
+
+# radius input form
 hp_radius_input_form = dbc.FormGroup(
     [
         dbc.Label("Radius (in meters)", html_for="radius", width=2),
@@ -88,6 +94,7 @@ hp_radius_input_form = dbc.FormGroup(
 )
 
 
+# all nodes button
 hp_all_nodes_button = dbc.Spinner(children=[dbc.Button("Find All Nodes",id="hp_all_nodes_button",color="primary")],
                                         size="sm", color="primary",id="spinner_1")
 
@@ -106,6 +113,7 @@ DROPDOWN_STYLE = {
 
 nav = Navbar()
 
+# collapse body
 collapse_body = dbc.Container(
     [
         all_nodes_form,
@@ -125,6 +133,7 @@ collapse_body = dbc.Container(
     ,style=CONTAINER_STYLE
 )
 
+# collapse body
 collapse = html.Div(
     [
         dbc.Button(
@@ -142,6 +151,7 @@ collapse = html.Div(
     ]
 )
 
+# cards on homepage
 second_card = dbc.Card(
     dbc.CardBody(
         [

@@ -1,3 +1,6 @@
+# Central app instance initialised here
+# can be accessed using from server import app
+
 import dash
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL, MATCH
