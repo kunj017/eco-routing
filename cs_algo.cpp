@@ -15,13 +15,14 @@ string ev_info_file = "ev_info.txt";
 
 // max nodes, edges, paths, number of cs
 const int MAX_NODES = 100009;
-const int max_paths = 10;
+const int max_paths = 100;
+const int display_number_of_paths = 5;
 const int MAX_CS = 10;
 int N, M, Q, cnt, CS, ev_initial_charge, ev_capacity;
 
 vector<pair<int,int> > graph[MAX_NODES];  // adjacency list for graph
 vector<pair<int,vector<int> > > paths[MAX_NODES]; // stores best paths for queries
-vector<pair<vector<int>,pair<double,double> > > final_paths[MAX_NODES];
+vector<pair<vector<int>,pair<double,pair<double,double>> > > final_paths[MAX_NODES];
 vector<int> fail_reasons[MAX_NODES];
 map<int, pair<int,vector<int> > > cs_paths[MAX_NODES];  // best cs paths for queries
 
@@ -33,25 +34,26 @@ const double lambda_energy_spent = 0.1;
 // assuming one unit charging takes charging_unit_time 
 const double charging_unit_time = 0.1;
 // assuming one unit of time travels ev_speed units distance
-const double ev_speed = 1.0;
+const double ev_speed = 5.0;
 
 int fail_condition; // 0 if init charge is less 1 if capacity is less
 
 // insert cs algo based on max_iterations parameter
-pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &path){
+pair<vector<int>,pair<double,pair<double,double>> > insert_charging_stations(vector<int> &path){
     vector<int> processed(path.size(),0);
     int max_iterations = 20;
-    set<pair<double,pair<double,pair<int,int> > > > st;
-    st.insert({0.0,{ev_initial_charge,{0,-1}}});
-    pair<double,pair<double,pair<int,int> > >  ans = {0,{0,{-1,-1}}};
-    map<pair<double,pair<double,pair<int,int> > >, pair<double,pair<double,pair<int,int> > > > parent;
+    set<pair<double,pair<pair<double,double>,pair<int,int> > > > st;
+    st.insert({0.0,{{ev_initial_charge,0},{0,-1}}});
+    pair<double,pair<pair<double,double>,pair<int,int> > >  ans = {0,{{0,0},{-1,-1}}};
+    map<pair<double,pair<pair<double,double>,pair<int,int> > >, pair<double,pair<pair<double,double>,pair<int,int> > > > parent;
     while(!st.empty()){
         auto element = *st.begin();
         st.erase(st.begin());
         double el_time = element.first;
-        double el_energy = element.second.first;
+        double el_energy = element.second.first.first;
         int el_node = element.second.second.first;
         int el_parent = element.second.second.second;
+        double charging_time = element.second.first.second;
 
         if(el_node == path.size()-1){
             ans = element;
@@ -66,8 +68,8 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
         double total_time = time_taken + el_time;
         double total_energy = el_energy - energy_taken;
         if(total_energy > 0){
-            parent[{total_time,{total_energy,{el_node+1,-1}}}] = element;
-            st.insert({total_time,{total_energy,{el_node+1,-1}}});
+            parent[{total_time,{{total_energy, charging_time},{el_node+1,-1}}}] = element;
+            st.insert({total_time,{{total_energy, charging_time},{el_node+1,-1}}});
         }
 
         for(auto cs:charging_stations){
@@ -77,14 +79,24 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
                 continue;
             }
             fail_condition = 1;
-            time_taken = cs_paths[path[el_node]][cs].first/ev_speed;
-            time_taken += cs_paths[path[el_node+1]][cs].first/ev_speed;
-            energy_taken = lambda_energy_spent*cs_paths[path[el_node+1]][cs].first;
-            total_energy = ev_capacity - energy_taken;
-            total_time = el_time + time_taken;
+            time_taken += (ev_capacity-(el_energy-energy_taken))*charging_unit_time; // charging time
+            double total_charging_time = charging_time + time_taken;
+            time_taken += cs_paths[path[el_node]][cs].first/ev_speed;    //node to cs
+            int dist = 1000000000;
+            int jump_node = el_node+1;
+            for(int node = el_node+1; node<min((int)path.size(),el_node+10);node++){
+                if(cs_paths[path[node]][cs].first < dist){
+                    jump_node = node;
+                    dist = cs_paths[path[node]][cs].first;
+                }
+            }
+            time_taken += cs_paths[path[jump_node]][cs].first/ev_speed; // cs to next node
+            energy_taken = lambda_energy_spent*cs_paths[path[jump_node]][cs].first; // energy to reach node from cs
+            total_energy = ev_capacity - energy_taken; // total energy
+            total_time = el_time + time_taken; // total time
             if(total_energy > 0){
-                parent[{total_time,{total_energy,{el_node+1,cs}}}] = element;
-                st.insert({total_time,{total_energy,{el_node+1,cs}}});
+                parent[{total_time,{{total_energy, total_charging_time},{jump_node,cs}}}] = element;
+                st.insert({total_time,{{total_energy, total_charging_time},{jump_node,cs}}});
             }
         }
     }
@@ -93,6 +105,7 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
     vector<int> output_path;
     double total_energy_taken = 0;
     double total_time_taken = ans.first;
+    double total_charging_time = ans.second.first.second;
     while(ans.second.second.first!=-1){
         int el_node = ans.second.second.first;
         int cs = ans.second.second.second;
@@ -118,7 +131,7 @@ pair<vector<int>,pair<double,double> > insert_charging_stations(vector<int> &pat
         ans = parent[ans];
     }
     reverse(output_path.begin(),output_path.end());
-    return {output_path,{total_time_taken,total_energy_taken}};
+    return {output_path,{total_time_taken,{total_energy_taken, total_charging_time}}};
 
 }
 
@@ -239,14 +252,24 @@ int main(){
     for(int i=0;i<Q;i++){
         int src, dst;
         query_reader >> src >> dst;
-        paths[i] = dijkstra(src, dst);
+        auto temp = dijkstra(src, dst);
+        auto temp1 = temp;
+        temp1.clear();
+        int dif = (temp.size() + display_number_of_paths -1)/display_number_of_paths;
+        for(int i=0;i<temp.size();i+=dif){
+            temp1.push_back(temp[i]);
+        }
+        if(temp1.back()!=temp.back()){
+            temp1.push_back(temp.back());
+        }
+        paths[i] = temp1;
         
     }
 
 
     // running cs insertion for each best path
     for(int i=0;i<Q;i++){
-        vector<pair<vector<int>,pair<double,double> > > temp;
+        vector<pair<vector<int>,pair<double,pair<double,double>> > > temp;
         vector<int> temp1;
         for(auto el:paths[i]){
             fail_condition = 0;
@@ -280,7 +303,7 @@ int main(){
     for(int i=0;i<Q;i++){
         cs_query_printer << final_paths[i].size() << endl; 
         for(auto el:final_paths[i]){
-            cs_query_printer << el.first.size() << " " << el.second.first << " " << el.second.second << endl;
+            cs_query_printer << el.first.size() << " " << el.second.first << " " << el.second.second.first << " " << el.second.second.second << endl;
             if(el.first.empty())cs_query_printer << fail_reasons[i][0];
             for(auto nodes:el.first){
                 cs_query_printer << nodes << " ";

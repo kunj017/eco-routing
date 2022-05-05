@@ -551,7 +551,7 @@ def generate_paths(nclicks, path_id_input, ncliks2, path_index_input):
                         dl.Marker(position=[Ynode[arr[-1]],Xnode[arr[-1]]],\
                                     children=dl.Tooltip(f"DST: Node{arr[-1]}", direction='top', permanent=True),
                                     riseOnHover=True, \
-                                    icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=green','iconSize':[30,40]})
+                                    icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]})
                     )
                 for node_id in arr:
                     path_node.append(
@@ -666,7 +666,7 @@ def generate_possible_paths(nclicks, path_id_input, ncliks2, path_index_input):
             path_nodes_temp = []
             paths_info = []
             for id in range(number_of_paths):
-                n,time,energy = list(map(float,my_file.readline().split()))
+                n,time,energy,charging_time = list(map(float,my_file.readline().split()))
                 arr = list(map(int,my_file.readline().split()))
                 print(arr)
                 path = []
@@ -682,7 +682,7 @@ def generate_possible_paths(nclicks, path_id_input, ncliks2, path_index_input):
                         paths_info.append(f"Could not reach destination !!! \n You need to increase vehicle capacity")
                     continue
                 
-                paths_info.append(f"Total Nodes: {n}, Total Time take : {time}, Total Energy Consumed : {energy}")
+                paths_info.append(f"Total Nodes: {n}, Time taken : {time},Energy Consumed : {energy}, Charging Time: {charging_time}")
                 path.append(
                     dl.Marker(position=[Ynode[arr[0]],Xnode[arr[0]]],\
                                 children=dl.Tooltip(f"SRC: Node{arr[0]}", direction='top', permanent=True),
@@ -694,7 +694,7 @@ def generate_possible_paths(nclicks, path_id_input, ncliks2, path_index_input):
                         dl.Marker(position=[Ynode[arr[-1]],Xnode[arr[-1]]],\
                                     children=dl.Tooltip(f"DST: Node{arr[-1]}", direction='top', permanent=True),
                                     riseOnHover=True, \
-                                    icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=green','iconSize':[30,40]})
+                                    icon={'iconUrl':'https://api.iconify.design/clarity/map-marker-solid-badged.svg?color=red','iconSize':[30,40]})
                     )
                 for node_id in arr:
                     if node_id in config.cs_selected_nodes:
