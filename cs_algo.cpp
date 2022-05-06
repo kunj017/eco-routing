@@ -212,8 +212,16 @@ int main(){
     graph_reader >> M;
     query_reader >> Q;
     cs_reader >> CS;
-    ev_info_reader >> ev_initial_charge >> ev_capacity;
-
+    // ev_info_reader >> ev_initial_charge >> ev_capacity;
+    vector<pair<int,int> > ev_info;
+    int n;
+    ev_info_reader >> n;
+    for(int i=0;i<n;i++){
+        int x,y;
+        ev_info_reader >> x >> y;
+        ev_info.push_back({x,y});
+        
+    }
     cout<<N<<" "<<M<<" "<<Q<<" "<<CS<<endl;
 
     // taking graph input
@@ -271,6 +279,8 @@ int main(){
     for(int i=0;i<Q;i++){
         vector<pair<vector<int>,pair<double,pair<double,double>> > > temp;
         vector<int> temp1;
+        ev_initial_charge = ev_info[i].first;
+        ev_capacity = ev_info[i].second;
         for(auto el:paths[i]){
             fail_condition = 0;
             temp.push_back(insert_charging_stations(el.second));

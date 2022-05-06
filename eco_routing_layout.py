@@ -97,7 +97,7 @@ initial_charge = dbc.FormGroup(
         dbc.Label("Initial charge:", html_for="no_of_vehicles", width=2),
         dbc.Col(
             dbc.Input(
-                type="number", id="er_inital_charge", placeholder="Enter inital charge",min=1, step=1,max=1000
+                type="text", id="er_inital_charge", placeholder="Enter inital charge"
             ),
             width=10,
         ),
@@ -111,7 +111,7 @@ ev_capacity = dbc.FormGroup(
         dbc.Label("Ev capacity:", html_for="no_of_vehicles", width=2),
         dbc.Col(
             dbc.Input(
-                type="number", id="er_ev_capacity", placeholder="Enter capacity of ev ( > inital charge )",min=1, step=1,max=1000
+                type="text", id="er_ev_capacity", placeholder="Enter capacity of ev ( > inital charge )"
             ),
             width=10,
         ),
@@ -196,6 +196,7 @@ body = dbc.Container([
     html.Br(),
     # input form for vehicles info
     vehicles_input_form ,
+    html.Div(id = "vechicle_form_validation"),
     # html.Br(),
     # html.Div(
     #     dcc.Dropdown(options=[{'label':'None','value':'Kunj'}], value="", id="cs_input_table"),

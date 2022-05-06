@@ -333,6 +333,13 @@ def get_all_nodes(latitude,longitude,radius):
     return len(G1.nodes), G1, A, Xnode, Ynode
 
 
+def check_int_list(ls):
+    ans = True
+    for i in ls:
+        ans = ans and isinstance(i,int)
+    return ans
+
+
 # callback related to number of EV input and generating content for drowpdown and updating the cirle on the input_map
 @app.callback(
     [
@@ -342,6 +349,7 @@ def get_all_nodes(latitude,longitude,radius):
      Output(component_id='dl_er_input_cs_selected_nodes', component_property='children'),
      Output(component_id='dl_er_output_cs_selected_nodes', component_property='children'),
      Output(component_id='dl_er_cs_output_cs_selected_nodes', component_property='children'),
+     Output(component_id="vechicle_form_validation",component_property="children")
     ],
     inputs = [
                 Input('er_vehicles_button', 'n_clicks'),
@@ -359,7 +367,7 @@ def er_input_ev(nclicks,number_of_ev,cs_input,initial_charge, ev_capacity):
         #     return f"Number of ev : {config.num_of_ev}",\
         #             config.ev_dropdown.to_dict('records'),\
         #                    config.table_of_ev_inputs.to_dict('records'), dash.no_update, dash.no_update
-        return "Enter number of EVs",[], [], [], [], []
+        return "Enter number of EVs",[], [], [], [], [],""
     
     print(f"CS Input: {cs_input}")
 
@@ -373,7 +381,22 @@ def er_input_ev(nclicks,number_of_ev,cs_input,initial_charge, ev_capacity):
         dl.Marker(position=[Ynode[i],Xnode[i]],children=dl.Tooltip(i, direction='top', permanent=True),\
         riseOnHover=True,icon={'iconUrl':'https://icon-library.com/images/station-icon/station-icon-14.jpg','iconSize':[30,40]}) \
             for i in cs_nodes]
+    input_ev_energy = list(map(int,initial_charge.split()))
+    input_ev_capacity = list(map(int,ev_capacity.split()))
+    print(input_ev_capacity)
+    print(input_ev_energy)
+    if not check_int_list(input_ev_energy) or not check_int_list(input_ev_capacity):
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, "Please enter all values as integer"
+    if(len(input_ev_energy)!=len(input_ev_capacity)):
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, "Please enter equal inputs in capacity and energy"
     
+    while(len(input_ev_capacity)<number_of_ev):
+        input_ev_capacity.append(input_ev_capacity[-1])
+    while(len(input_ev_energy)<number_of_ev):
+        input_ev_energy.append(input_ev_energy[-1])
+    
+    input_ev_energy = input_ev_energy[:number_of_ev]
+    input_ev_capacity = input_ev_capacity[:number_of_ev]
     my_file = open('cs_input.txt', "w+")
     my_file.write("%d \n" %int(len(config.cs_selected_nodes)))
     for i in config.cs_selected_nodes:
@@ -383,8 +406,12 @@ def er_input_ev(nclicks,number_of_ev,cs_input,initial_charge, ev_capacity):
     my_file.close()
 
     my_file = open('ev_info.txt', "w+")
-    my_file.write("%d " %int(initial_charge))
-    my_file.write("%d \n" %int(ev_capacity))
+    # my_file.write("%d " %int(initial_charge[0]))
+    # my_file.write("%d \n" %int(ev_capacity[0]))
+    my_file.write("%d \n" %int(len(input_ev_capacity)))
+    for i in range(len(input_ev_capacity)):
+        my_file.write("%d " %int(input_ev_energy[i]))
+        my_file.write("%d \n" %int(input_ev_capacity[i]))
     my_file.close()
 
     global input_ev_locations, Xnode, algo_input
@@ -403,7 +430,7 @@ def er_input_ev(nclicks,number_of_ev,cs_input,initial_charge, ev_capacity):
     config.table_of_ev_inputs = table
     return f"Number of ev: {number_of_ev}", \
             config.ev_dropdown.to_dict('records'),\
-        config.table_of_ev_inputs.to_dict('records'), config.cs_selected_positions, config.cs_selected_positions, config.cs_selected_positions
+        config.table_of_ev_inputs.to_dict('records'), config.cs_selected_positions, config.cs_selected_positions, config.cs_selected_positions, ""
         
 
 # Taking inputs of source and destination coordinates based on dropdown or input using map clicks
